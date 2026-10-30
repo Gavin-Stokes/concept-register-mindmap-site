@@ -84,6 +84,25 @@
   .muted { color:var(--muted); }
   .note { color:var(--muted); font-size:12.5px; margin:14px 0 0; line-height:1.55; }
   .note a { color:var(--muted); }
+  .right-col { display:flex; flex-direction:column; gap:10px; }
+  .altcard { background:var(--surface); border:1px solid var(--border); border-radius:12px; overflow:hidden; }
+  .view-switch { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .view-label { margin:0; font-size:13px; color:var(--muted); }
+  .list-wrap { max-height:82vh; overflow-y:auto; }
+  .list-group-head { font-size:11.5px; letter-spacing:.05em; text-transform:uppercase; color:var(--muted); padding:10px 16px 4px; }
+  .list-row { display:block; width:100%; text-align:left; background:none; border:0; border-bottom:1px solid var(--border); padding:10px 16px; cursor:pointer; color:var(--text); font:inherit; }
+  .list-row:hover, .list-row.sel { background:var(--surface2); }
+  .list-name { font-weight:600; font-size:14px; margin-bottom:3px; }
+  .list-meta { display:flex; gap:6px; align-items:center; margin-bottom:3px; flex-wrap:wrap; }
+  .list-cid { font-size:11.5px; color:var(--muted); }
+  .list-def { font-size:12.5px; color:var(--muted); overflow-wrap:anywhere; }
+  .table-wrap { overflow-x:auto; max-height:82vh; overflow-y:auto; }
+  .ctable { width:100%; border-collapse:collapse; font-size:13px; }
+  .ctable th { padding:9px 12px; text-align:left; font-size:11.5px; letter-spacing:.04em; text-transform:uppercase; color:var(--muted); border-bottom:2px solid var(--border); cursor:pointer; white-space:nowrap; position:sticky; top:0; background:var(--surface); user-select:none; -webkit-user-select:none; }
+  .ctable th:hover { color:var(--text); }
+  .ctable td { padding:8px 12px; border-bottom:1px solid var(--border); vertical-align:top; }
+  .ctable tbody tr { cursor:pointer; }
+  .ctable tbody tr:hover td, .ctable tbody tr.sel td { background:var(--surface2); }
 
   .st-agreed { --c:var(--agreed); } .st-contested { --c:var(--contested); }
   .st-draft { --c:var(--draft); } .st-deprecated { --c:var(--deprecated); } .st-other { --c:var(--other); }
@@ -126,16 +145,29 @@
   <div class="notice" id="notice"><p id="notice-text"></p><button type="button" class="btn" id="notice-btn" hidden></button></div>
 
   <div class="grid">
-    <div class="mapcard">
-      <svg id="map" viewBox="-520 -520 1040 1040" role="img" aria-label="Mind map of the Concept Register"><g id="stage"></g></svg>
-      <div class="zoom">
-        <button type="button" id="z-in" aria-label="Zoom in">+</button>
-        <button type="button" id="z-out" aria-label="Zoom out">−</button>
-        <button type="button" id="z-fit" aria-label="Reset view">⤢</button>
+    <div>
+      <div class="mapcard" id="view-map">
+        <svg id="map" viewBox="-520 -520 1040 1040" role="img" aria-label="Mind map of the Concept Register"><g id="stage"></g></svg>
+        <div class="zoom">
+          <button type="button" id="z-in" aria-label="Zoom in">+</button>
+          <button type="button" id="z-out" aria-label="Zoom out">−</button>
+          <button type="button" id="z-fit" aria-label="Reset view">⤢</button>
+        </div>
+        <div class="hint">Drag to pan · scroll or pinch to zoom · tap a concept for details</div>
       </div>
-      <div class="hint">Drag to pan · scroll or pinch to zoom · tap a concept for details</div>
+      <div class="altcard" id="view-alt" hidden></div>
     </div>
-    <aside class="panel" id="detail" aria-live="polite"></aside>
+    <div class="right-col">
+      <aside class="panel" id="detail" aria-live="polite"></aside>
+      <div class="view-switch" role="group" aria-label="Display as">
+        <span class="view-label">View as</span>
+        <div class="seg">
+          <button type="button" id="v-map" aria-pressed="true">Mind map</button>
+          <button type="button" id="v-list" aria-pressed="false">List</button>
+          <button type="button" id="v-table" aria-pressed="false">Table</button>
+        </div>
+      </div>
+    </div>
   </div>
   <noscript><p class="muted">This page needs JavaScript to draw the map.</p></noscript>
 </div>
@@ -157,6 +189,7 @@
   var concepts = [], byKey = {};
   var groupBy = "area", showLinks = true, hidden = {};
   var selected = null, hover = null;
+  var viewMode = "map", tableSortCol = "id", tableSortDir = 1;
   var view = { k: 1, x: 0, y: 0 }, ext = 520;
   var leafEls = [], linkEls = [], posByKey = {};
 
@@ -294,9 +327,11 @@
   function render() {
     renderSummary();
     renderLegend();
-    drawMap();
-    renderDetail();
-    applyFocus();
+    var isMap = viewMode === "map";
+    $("view-map").hidden = !isMap;
+    $("view-alt").hidden = isMap;
+    if (isMap) { drawMap(); renderDetail(); applyFocus(); }
+    else { if (viewMode === "list") { drawList(); } else { drawTable(); } renderDetail(); }
   }
 
   function renderSummary() {
@@ -458,7 +493,10 @@
 
   function choose(key) {
     selected = selected === key ? null : key;
-    renderDetail(); applyFocus();
+    renderDetail();
+    if (viewMode === "map") { applyFocus(); }
+    else if (viewMode === "list") { drawList(); }
+    else { drawTable(); }
   }
 
   function applyFocus() {
@@ -523,6 +561,72 @@
         b.addEventListener("click", function () { selected = k; renderDetail(); applyFocus(); });
       });
     }
+  }
+
+  /* ---------- list and table views ---------- */
+  function drawList() {
+    var box = $("view-alt"); box.textContent = "";
+    var vis = concepts.filter(function (c) { return !hidden[c.skey]; });
+    if (!vis.length) { h("p", "empty", loaded ? "No concepts to show." : "Loading the register…", box); return; }
+    var wrap = h("div", "list-wrap", null, box);
+    var groups = buildGroups(vis);
+    groups.forEach(function (g) {
+      h("div", "list-group-head", g.name + " (" + g.items.length + ")", wrap);
+      g.items.forEach(function (c) {
+        var row = h("button", "list-row" + (selected === c.key ? " sel" : ""), null, wrap);
+        row.type = "button";
+        h("div", "list-name", c.name, row);
+        var meta = h("div", "list-meta", null, row);
+        if (c.id) { h("span", "list-cid", c.id, meta); }
+        h("span", "pill st-" + c.skey, c.status || "No status", meta);
+        if (c.def) { h("div", "list-def", trunc(c.def, 100), row); }
+        row.addEventListener("click", function () { choose(c.key); });
+      });
+    });
+  }
+
+  function drawTable() {
+    var box = $("view-alt"); box.textContent = "";
+    var vis = concepts.filter(function (c) { return !hidden[c.skey]; });
+    if (!vis.length) { h("p", "empty", loaded ? "No concepts to show." : "Loading the register…", box); return; }
+    var wrap = h("div", "table-wrap", null, box);
+    var table = document.createElement("table"); table.className = "ctable"; wrap.appendChild(table);
+    var cols = [{ key:"id", label:"ID" }, { key:"name", label:"Term" }, { key:"pub", label:"Public term" }, { key:"status", label:"Status" }, { key:"areas", label:"Service areas" }];
+    var thead = document.createElement("thead"); table.appendChild(thead);
+    var hrow = document.createElement("tr"); thead.appendChild(hrow);
+    cols.forEach(function (col) {
+      var th = document.createElement("th");
+      th.textContent = col.label + (tableSortCol === col.key ? (tableSortDir > 0 ? " ↑" : " ↓") : "");
+      th.addEventListener("click", function () {
+        if (tableSortCol === col.key) { tableSortDir *= -1; } else { tableSortCol = col.key; tableSortDir = 1; }
+        drawTable();
+      });
+      hrow.appendChild(th);
+    });
+    var sorted = vis.slice().sort(function (a, b) {
+      var av = tableSortCol === "areas" ? a.areas.join(", ") : String(a[tableSortCol] || "");
+      var bv = tableSortCol === "areas" ? b.areas.join(", ") : String(b[tableSortCol] || "");
+      return av.localeCompare(bv, "en", { numeric: true }) * tableSortDir;
+    });
+    var tbody = document.createElement("tbody"); table.appendChild(tbody);
+    sorted.forEach(function (c) {
+      var row = document.createElement("tr");
+      if (selected === c.key) { row.className = "sel"; }
+      row.addEventListener("click", function () { choose(c.key); });
+      [c.id || "—", c.name, c.pub || "—", null, c.areas.join(", ") || "—"].forEach(function (val, i) {
+        var td = document.createElement("td");
+        if (i === 3) { h("span", "pill st-" + c.skey, c.status || "No status", td); }
+        else { td.textContent = val; }
+        row.appendChild(td);
+      });
+      tbody.appendChild(row);
+    });
+  }
+
+  function setView(v) {
+    viewMode = v;
+    ["map", "list", "table"].forEach(function (k) { $("v-" + k).setAttribute("aria-pressed", k === v ? "true" : "false"); });
+    render();
   }
 
   /* ---------- pan and zoom ---------- */
@@ -612,6 +716,9 @@
     render();
   });
   $("b-refresh").addEventListener("click", function () { load(true); });
+  $("v-map").addEventListener("click", function () { setView("map"); });
+  $("v-list").addEventListener("click", function () { setView("list"); });
+  $("v-table").addEventListener("click", function () { setView("table"); });
 
   /* ---------- start ---------- */
   render();
