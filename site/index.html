@@ -1,0 +1,623 @@
+<!doctype html>
+<html lang="en-IE">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<meta name="description" content="Shared-language Concept Register for joined-up public services, shown as a mind map.">
+<title>Concept Register mind map</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg:#f7f6f3; --surface:#ffffff; --surface2:#f1efe9; --text:#1a1916; --muted:#6b6860;
+    --border:#e3e0d8; --line:#c9c5ba; --link:#8a8780; --accent:#2f6fed;
+    --agreed:#0d8050; --contested:#b36a00; --draft:#2f6fed; --deprecated:#77746d; --other:#77746d;
+    --warn:#c0392b;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg:#14130f; --surface:#1d1c17; --surface2:#26241e; --text:#efede6; --muted:#a09d94;
+      --border:#34322a; --line:#4a473d; --link:#7a776e; --accent:#7ba5ff;
+      --agreed:#3fbf86; --contested:#e0a040; --draft:#7ba5ff; --deprecated:#9a978f; --other:#9a978f;
+      --warn:#ff8a7a;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg:#14130f; --surface:#1d1c17; --surface2:#26241e; --text:#efede6; --muted:#a09d94;
+    --border:#34322a; --line:#4a473d; --link:#7a776e; --accent:#7ba5ff;
+    --agreed:#3fbf86; --contested:#e0a040; --draft:#7ba5ff; --deprecated:#9a978f; --other:#9a978f;
+    --warn:#ff8a7a;
+  }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+  *, *::before, *::after { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text);
+    font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif; }
+  .wrap { max-width:1240px; margin:0 auto; padding:20px 16px 40px; }
+  h1 { font-size:22px; line-height:1.25; margin:0 0 2px; font-weight:650; letter-spacing:-0.2px; }
+  .sub { color:var(--muted); margin:0 0 14px; font-size:14px; }
+  .toolbar { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:10px; }
+  .seg { display:inline-flex; border:1px solid var(--border); border-radius:8px; overflow:hidden; background:var(--surface); }
+  .seg button { border:0; background:transparent; color:var(--muted); padding:7px 12px; font:inherit; font-size:13px; cursor:pointer; }
+  .seg button + button { border-left:1px solid var(--border); }
+  .seg button[aria-pressed="true"] { background:var(--surface2); color:var(--text); font-weight:600; }
+  .btn { border:1px solid var(--border); background:var(--surface); color:var(--text); border-radius:8px;
+    padding:7px 12px; font:inherit; font-size:13px; cursor:pointer; }
+  .btn[aria-pressed="true"] { background:var(--surface2); font-weight:600; }
+  .btn:disabled { opacity:.55; cursor:default; }
+  button:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+  .live { margin-left:auto; color:var(--muted); font-size:12.5px; }
+  .summary { font-size:13.5px; color:var(--muted); margin:0 0 10px; }
+  .legend { display:flex; flex-wrap:wrap; gap:6px; margin:0 0 12px; }
+  .chip { display:inline-flex; align-items:center; gap:7px; border:1px solid var(--border); background:var(--surface);
+    color:var(--text); border-radius:999px; padding:4px 11px; font:inherit; font-size:13px; cursor:pointer; }
+  .chip[aria-pressed="false"] { opacity:.5; text-decoration:line-through; }
+  .dotkey { width:10px; height:10px; border-radius:50%; background:var(--c, var(--other)); display:inline-block; }
+  .notice { display:none; border:1px solid var(--border); border-left:4px solid var(--contested); background:var(--surface);
+    border-radius:8px; padding:10px 12px; margin:0 0 12px; font-size:14px; }
+  .notice.show { display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
+  .notice p { margin:0; flex:1 1 260px; }
+  .grid { display:grid; grid-template-columns:minmax(0,1fr) 340px; gap:16px; align-items:start; }
+  @media (max-width: 880px) { .grid { grid-template-columns:1fr; } }
+  .mapcard { position:relative; background:var(--surface); border:1px solid var(--border); border-radius:12px; overflow:hidden; }
+  #map { display:block; width:100%; height:auto; aspect-ratio:1/1; max-height:82vh; touch-action:none; cursor:grab; user-select:none; -webkit-user-select:none; }
+  #map.grabbing { cursor:grabbing; }
+  .zoom { position:absolute; right:10px; top:10px; display:flex; flex-direction:column; gap:6px; }
+  .zoom button { width:34px; height:34px; border:1px solid var(--border); background:var(--surface); color:var(--text);
+    border-radius:8px; font-size:17px; line-height:1; cursor:pointer; }
+  .hint { position:absolute; left:12px; bottom:10px; font-size:12px; color:var(--muted); pointer-events:none; }
+  .empty { padding:60px 20px; text-align:center; color:var(--muted); }
+  .panel { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px; }
+  .panel h2 { font-size:18px; margin:0 0 2px; line-height:1.3; }
+  .panel .cid { font-size:12.5px; color:var(--muted); margin-bottom:8px; }
+  .pill { display:inline-block; border-radius:999px; padding:2px 10px; font-size:12px; font-weight:600;
+    background:var(--surface2); color:var(--c, var(--other)); border:1px solid var(--c, var(--border)); margin-bottom:10px; }
+  .field { margin:0 0 11px; }
+  .field .k { font-size:11.5px; letter-spacing:.05em; text-transform:uppercase; color:var(--muted); margin-bottom:1px; }
+  .field .v { font-size:14px; overflow-wrap:anywhere; }
+  .field .v.warn { color:var(--warn); font-weight:600; }
+  .rels { display:flex; flex-wrap:wrap; gap:6px; }
+  .rels button { border:1px solid var(--border); background:var(--surface2); color:var(--text); border-radius:999px;
+    padding:3px 10px; font:inherit; font-size:13px; cursor:pointer; }
+  .muted { color:var(--muted); }
+  .note { color:var(--muted); font-size:12.5px; margin:14px 0 0; line-height:1.55; }
+
+  .st-agreed { --c:var(--agreed); } .st-contested { --c:var(--contested); }
+  .st-draft { --c:var(--draft); } .st-deprecated { --c:var(--deprecated); } .st-other { --c:var(--other); }
+  .edge { fill:none; stroke:var(--c, var(--line)); stroke-width:1.6; opacity:.5; }
+  .spoke { fill:none; stroke:var(--line); stroke-width:2.2; }
+  .link { fill:none; stroke:var(--link); stroke-width:1.6; stroke-dasharray:5 5; opacity:.5; }
+  .link.hot { stroke:var(--accent); opacity:1; stroke-width:2.6; stroke-dasharray:none; }
+  .link.dim { opacity:.07; }
+  .leaf { cursor:pointer; outline:none; }
+  .leaf .dot { fill:var(--c, var(--other)); stroke:var(--surface); stroke-width:2; }
+  .leaf text { fill:var(--text); }
+  .leaf.dim { opacity:.16; }
+  .leaf.sel .dot, .leaf:focus-visible .dot { stroke:var(--text); stroke-width:3; }
+  .leaf.sel text { font-weight:650; }
+  .branch rect { fill:var(--surface); stroke:var(--c, var(--line)); stroke-width:2; }
+  .branch text { fill:var(--text); font-weight:600; }
+  .hub circle { fill:var(--text); }
+  .hub text { fill:var(--bg); font-weight:650; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Concept Register mind map</h1>
+  <p class="sub">The shared-language register for joined-up public services. It refreshes by itself while this page stays open.</p>
+
+  <div class="toolbar">
+    <div class="seg" role="group" aria-label="Group concepts by">
+      <button type="button" id="g-area" aria-pressed="true">By service area</button>
+      <button type="button" id="g-status" aria-pressed="false">By status</button>
+    </div>
+    <button type="button" class="btn" id="b-links" aria-pressed="true">Related links</button>
+    <button type="button" class="btn" id="b-refresh">Check for updates</button>
+    <span class="live" id="live" role="status">Loading…</span>
+  </div>
+
+  <p class="summary" id="summary"></p>
+  <div class="legend" id="legend"></div>
+  <div class="notice" id="notice"><p id="notice-text"></p><button type="button" class="btn" id="notice-btn" hidden></button></div>
+
+  <div class="grid">
+    <div class="mapcard">
+      <svg id="map" viewBox="-520 -520 1040 1040" role="img" aria-label="Mind map of the Concept Register"><g id="stage"></g></svg>
+      <div class="zoom">
+        <button type="button" id="z-in" aria-label="Zoom in">+</button>
+        <button type="button" id="z-out" aria-label="Zoom out">−</button>
+        <button type="button" id="z-fit" aria-label="Reset view">⤢</button>
+      </div>
+      <div class="hint">Drag to pan · scroll or pinch to zoom · tap a concept for details</div>
+    </div>
+    <aside class="panel" id="detail" aria-live="polite"></aside>
+  </div>
+  <noscript><p class="muted">This page needs JavaScript to draw the map.</p></noscript>
+  <p class="note">Source: the Concept Register. The data on this page is copied from it automatically about every 15 minutes, so a change can take that long to appear.</p>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var DATA_URL = "data.json";
+  var POLL_MS = 60000;
+  var NS = "http://www.w3.org/2000/svg";
+  var STATUS_ORDER = ["Agreed", "Contested", "Draft", "Deprecated"];
+  var MAXLABEL = 26;
+
+  var $ = function (id) { return document.getElementById(id); };
+  var svg = $("map"), stage = $("stage");
+
+  var loaded = false, busy = false, generatedAt = 0, lastSig = "";
+  var concepts = [], byKey = {};
+  var groupBy = "area", showLinks = true, hidden = {};
+  var selected = null, hover = null;
+  var view = { k: 1, x: 0, y: 0 }, ext = 520;
+  var leafEls = [], linkEls = [], posByKey = {};
+
+  /* ---------- helpers ---------- */
+  function el(name, attrs, parent) {
+    var e = document.createElementNS(NS, name);
+    if (attrs) { for (var k in attrs) { e.setAttribute(k, attrs[k]); } }
+    if (parent) { parent.appendChild(e); }
+    return e;
+  }
+  function h(tag, cls, text, parent) {
+    var e = document.createElement(tag);
+    if (cls) { e.className = cls; }
+    if (text != null) { e.textContent = text; }
+    if (parent) { parent.appendChild(e); }
+    return e;
+  }
+  function skey(s) {
+    var k = String(s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+    return ["agreed", "contested", "draft", "deprecated"].indexOf(k) >= 0 ? k : "other";
+  }
+  function trunc(s, n) { return s.length > n ? s.slice(0, n - 1) + "…" : s; }
+  function fdate(s) {
+    if (!s) { return ""; }
+    var d = new Date(s + "T00:00:00");
+    return isNaN(d.getTime()) ? s : d.toLocaleDateString("en-IE", { day: "numeric", month: "short", year: "numeric" });
+  }
+  function todayIso() {
+    var d = new Date();
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  }
+  function byId(a, b) {
+    if (!a.id && !b.id) { return a.name.localeCompare(b.name, "en"); }
+    if (!a.id) { return 1; }
+    if (!b.id) { return -1; }
+    return a.id.localeCompare(b.id, "en", { numeric: true }) || a.name.localeCompare(b.name, "en");
+  }
+  function rank(n) { var i = STATUS_ORDER.indexOf(n); return i < 0 ? 99 : i; }
+
+  /* ---------- data ---------- */
+  function norm(r) {
+    var areas = [];
+    (Array.isArray(r.areas) ? r.areas : []).forEach(function (a) {
+      String(a).split(";").forEach(function (p) {
+        p = p.trim();
+        if (p && areas.indexOf(p) < 0) { areas.push(p); }
+      });
+    });
+    if (!areas.length) { areas = ["Unassigned"]; }
+    var status = String(r.status || "").trim();
+    var id = String(r.conceptId || "");
+    return {
+      key: String(r.id || id),
+      id: id,
+      name: String(r.name || id || "Untitled"),
+      pub: String(r.pub || ""),
+      def: String(r.def || ""),
+      legal: String(r.legal || ""),
+      syn: String(r.syn || ""),
+      disputes: String(r.disputes || ""),
+      owner: String(r.owner || ""),
+      next: String(r.next || ""),
+      last: String(r.last || ""),
+      tested: r.tested === true,
+      status: status,
+      skey: skey(status),
+      areas: areas,
+      rel: (Array.isArray(r.related) ? r.related : []).map(String)
+    };
+  }
+
+  function ingest(data) {
+    if (!data || !Array.isArray(data.concepts)) {
+      throw new Error("Unexpected data format");
+    }
+    var ts = Date.parse(data.generatedAt);
+    generatedAt = isNaN(ts) ? 0 : ts;
+    var sig = JSON.stringify(data.concepts);
+    if (loaded && sig === lastSig) { return false; }
+    lastSig = sig;
+    concepts = data.concepts.map(norm);
+    byKey = {};
+    concepts.forEach(function (c) { byKey[c.key] = c; });
+    if (selected && !byKey[selected]) { selected = null; }
+    loaded = true;
+    render();
+    return true;
+  }
+
+  /* ---------- notices and loading ---------- */
+  function showNotice(msg, action) {
+    $("notice-text").textContent = msg;
+    var b = $("notice-btn");
+    if (action) {
+      b.hidden = false; b.textContent = action.label; b.onclick = action.fn;
+    } else { b.hidden = true; b.onclick = null; }
+    $("notice").classList.add("show");
+  }
+  function hideNotice() { $("notice").classList.remove("show"); }
+  function setLive(t) { $("live").textContent = t; }
+  function fstamp(ms) {
+    return new Date(ms).toLocaleString("en-IE", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  }
+  function liveText() {
+    return generatedAt ? "Register copied " + fstamp(generatedAt) : "Loaded";
+  }
+
+  function load(manual) {
+    if (busy) { return Promise.resolve(false); }
+    busy = true; $("b-refresh").disabled = true;
+    if (manual) { setLive("Checking…"); }
+    return fetch(DATA_URL + "?t=" + Date.now(), { cache: "no-store" })
+      .then(function (r) {
+        if (!r.ok) { throw new Error("HTTP " + r.status); }
+        return r.json();
+      })
+      .then(function (d) {
+        ingest(d); hideNotice(); setLive(liveText());
+        return true;
+      })
+      .catch(function () {
+        if (loaded) {
+          showNotice("Couldn’t check for updates just now. Showing the data from " + fstamp(generatedAt || Date.now()) + "; the page will try again by itself.", null);
+          setLive(liveText());
+        } else {
+          showNotice("Couldn’t load the register data. Check your connection and try again.", { label: "Try again", fn: function () { load(true); } });
+          setLive("Offline");
+        }
+        return false;
+      })
+      .then(function (ok) { busy = false; $("b-refresh").disabled = false; return ok; });
+  }
+
+  /* ---------- rendering ---------- */
+  function render() {
+    renderSummary();
+    renderLegend();
+    drawMap();
+    renderDetail();
+    applyFocus();
+  }
+
+  function renderSummary() {
+    var s = $("summary");
+    if (!loaded) { s.textContent = ""; return; }
+    var counts = {}, overdue = 0, today = todayIso();
+    concepts.forEach(function (c) {
+      var k = c.status || "No status";
+      counts[k] = (counts[k] || 0) + 1;
+      if (c.next && c.next < today && c.skey !== "deprecated") { overdue++; }
+    });
+    var parts = [concepts.length + (concepts.length === 1 ? " concept" : " concepts")];
+    Object.keys(counts).sort(function (a, b) { return rank(a) - rank(b) || a.localeCompare(b, "en"); })
+      .forEach(function (k) { parts.push(counts[k] + " " + k.toLowerCase()); });
+    if (overdue) { parts.push(overdue + " overdue for review"); }
+    s.textContent = parts.join(" · ");
+  }
+
+  function renderLegend() {
+    var box = $("legend"); box.textContent = "";
+    if (!loaded) { return; }
+    var seen = {};
+    concepts.forEach(function (c) {
+      var n = c.status || "No status";
+      if (!seen[n]) { seen[n] = { skey: c.skey, key: c.skey, n: 0 }; }
+      seen[n].n++;
+    });
+    Object.keys(seen).sort(function (a, b) { return rank(a) - rank(b) || a.localeCompare(b, "en"); }).forEach(function (name) {
+      var item = seen[name];
+      var b = h("button", "chip st-" + item.skey, null, box);
+      b.type = "button";
+      b.setAttribute("aria-pressed", hidden[item.skey] ? "false" : "true");
+      h("span", "dotkey", null, b);
+      h("span", null, name + " (" + item.n + ")", b);
+      b.addEventListener("click", function () { hidden[item.skey] = !hidden[item.skey]; render(); });
+    });
+  }
+
+  function buildGroups(vis) {
+    var m = new Map();
+    vis.forEach(function (c) {
+      var keys = groupBy === "area" ? c.areas : [c.status || "No status"];
+      keys.forEach(function (k) {
+        if (!m.has(k)) { m.set(k, []); }
+        m.get(k).push(c);
+      });
+    });
+    var g = Array.from(m, function (e) { return { name: e[0], items: e[1].slice().sort(byId) }; });
+    if (groupBy === "area") { g.sort(function (a, b) { return a.name.localeCompare(b.name, "en"); }); }
+    else { g.sort(function (a, b) { return rank(a.name) - rank(b.name) || a.name.localeCompare(b.name, "en"); }); }
+    return g;
+  }
+
+  function drawMap() {
+    stage.textContent = "";
+    leafEls = []; linkEls = []; posByKey = {};
+    var vis = concepts.filter(function (c) { return !hidden[c.skey]; });
+    var groups = buildGroups(vis);
+    var N = 0; groups.forEach(function (g) { N += g.items.length; });
+
+    if (!N) {
+      ext = 520;
+      svg.setAttribute("viewBox", [-ext, -ext, 2 * ext, 2 * ext].join(" "));
+      var t = el("text", { x: 0, y: 0, "text-anchor": "middle", "font-size": 20, fill: "var(--muted)" }, stage);
+      t.textContent = loaded ? "No concepts to show" : "Loading the register…";
+      return;
+    }
+
+    var G = groups.length;
+    var R2 = Math.max(300, N * 3.4), R1 = R2 * 0.5;
+    var fs = Math.max(13, R2 / 24), leafR = Math.max(6, fs * 0.5);
+    ext = Math.ceil(R2 + leafR + 10 + MAXLABEL * fs * 0.56 + 24);
+    svg.setAttribute("viewBox", [-ext, -ext, 2 * ext, 2 * ext].join(" "));
+
+    var step = 2 * Math.PI / (N + G * 0.8), cursor = 0, start = -Math.PI / 2;
+    groups.forEach(function (g) {
+      cursor += 0.4;
+      g.leaves = g.items.map(function (c) {
+        var th = start + (cursor + 0.5) * step; cursor += 1;
+        return { c: c, th: th };
+      });
+      cursor += 0.4;
+      var sum = 0; g.leaves.forEach(function (l) { sum += l.th; });
+      g.ang = sum / g.leaves.length;
+    });
+
+    var gLinks = el("g", null, stage), gEdges = el("g", null, stage), gHub = el("g", { "class": "hub" }, stage);
+    var gBranch = el("g", null, stage), gLeaves = el("g", null, stage);
+
+    /* branches and edges */
+    groups.forEach(function (g) {
+      var bx = R1 * Math.cos(g.ang), by = R1 * Math.sin(g.ang);
+      var gk = groupBy === "status" ? skey(g.name) : "";
+      el("line", { "class": "spoke", x1: 0, y1: 0, x2: bx, y2: by }, gEdges);
+      var mid = (R1 + R2) / 2, cx = mid * Math.cos(g.ang), cy = mid * Math.sin(g.ang);
+      g.leaves.forEach(function (l) {
+        var lx = R2 * Math.cos(l.th), ly = R2 * Math.sin(l.th);
+        el("path", { "class": "edge st-" + l.c.skey, d: "M" + bx + " " + by + " Q" + cx + " " + cy + " " + lx + " " + ly }, gEdges);
+        if (!posByKey[l.c.key]) { posByKey[l.c.key] = { x: lx, y: ly }; }
+      });
+      var label = trunc(g.name, 24);
+      var w = label.length * fs * 0.6 + 22, hh = fs * 2;
+      var bg = el("g", { "class": "branch" + (gk ? " st-" + gk : ""), transform: "translate(" + bx + " " + by + ")" }, gBranch);
+      el("rect", { x: -w / 2, y: -hh / 2, width: w, height: hh, rx: hh / 2 }, bg);
+      var bt = el("text", { x: 0, y: 0, dy: "0.35em", "text-anchor": "middle", "font-size": fs }, bg);
+      bt.textContent = label;
+      var bti = el("title", null, bg); bti.textContent = g.name + " (" + g.items.length + ")";
+    });
+
+    /* related links */
+    if (showLinks) {
+      var seen = {};
+      vis.forEach(function (c) {
+        c.rel.forEach(function (r) {
+          if (r === c.key || !posByKey[r] || !posByKey[c.key]) { return; }
+          var pid = [c.key, r].sort().join("|");
+          if (seen[pid]) { return; }
+          seen[pid] = true;
+          var a = posByKey[c.key], b = posByKey[r];
+          var d = "M" + a.x + " " + a.y + " Q" + ((a.x + b.x) / 2 * 0.2) + " " + ((a.y + b.y) / 2 * 0.2) + " " + b.x + " " + b.y;
+          var p = el("path", { "class": "link", d: d }, gLinks);
+          linkEls.push({ el: p, a: c.key, b: r });
+        });
+      });
+    }
+
+    /* hub */
+    var rc = Math.max(48, R2 * 0.14);
+    el("circle", { cx: 0, cy: 0, r: rc }, gHub);
+    var t1 = el("text", { x: 0, y: -fs * 0.35, "text-anchor": "middle", "font-size": fs * 1.05 }, gHub); t1.textContent = "Concept";
+    var t2 = el("text", { x: 0, y: fs * 0.95, "text-anchor": "middle", "font-size": fs * 1.05 }, gHub); t2.textContent = "Register";
+
+    /* leaves */
+    groups.forEach(function (g) {
+      g.leaves.forEach(function (l) {
+        var c = l.c, cosv = Math.cos(l.th), deg = l.th * 180 / Math.PI;
+        var flip = cosv < 0;
+        var x = R2 * cosv, y = R2 * Math.sin(l.th);
+        var node = el("g", {
+          "class": "leaf st-" + c.skey, tabindex: "0", role: "button",
+          "aria-label": c.name + ", " + (c.status || "no status"),
+          transform: "translate(" + x + " " + y + ") rotate(" + (flip ? deg + 180 : deg) + ")"
+        }, gLeaves);
+        el("circle", { "class": "dot", cx: 0, cy: 0, r: leafR }, node);
+        var tx = el("text", { x: flip ? -(leafR + 7) : (leafR + 7), y: 0, dy: "0.35em", "text-anchor": flip ? "end" : "start", "font-size": fs }, node);
+        tx.textContent = trunc(c.name, MAXLABEL);
+        var ti = el("title", null, node); ti.textContent = c.name + (c.id ? " (" + c.id + ")" : "") + " — " + (c.status || "no status");
+        leafEls.push({ id: c.key, el: node });
+        node.addEventListener("click", function (e) { e.stopPropagation(); if (moved) { return; } choose(c.key); });
+        node.addEventListener("keydown", function (e) {
+          if (e.key === "Enter" || e.key === " ") { e.preventDefault(); choose(c.key); }
+        });
+        node.addEventListener("pointerenter", function (e) { if (e.pointerType === "mouse") { hover = c.key; applyFocus(); } });
+        node.addEventListener("pointerleave", function (e) { if (e.pointerType === "mouse") { hover = null; applyFocus(); } });
+      });
+    });
+    applyView();
+  }
+
+  function choose(key) {
+    selected = selected === key ? null : key;
+    renderDetail(); applyFocus();
+  }
+
+  function applyFocus() {
+    var f = hover || selected, set = null;
+    if (f) {
+      set = {}; set[f] = 1;
+      var c = byKey[f];
+      if (c) { c.rel.forEach(function (k) { set[k] = 1; }); }
+      concepts.forEach(function (x) { if (x.rel.indexOf(f) >= 0) { set[x.key] = 1; } });
+    }
+    leafEls.forEach(function (l) {
+      l.el.classList.toggle("dim", !!set && !set[l.id]);
+      l.el.classList.toggle("sel", l.id === selected);
+    });
+    linkEls.forEach(function (l) {
+      var hot = !!f && (l.a === f || l.b === f);
+      l.el.classList.toggle("hot", hot);
+      l.el.classList.toggle("dim", !!f && !hot);
+    });
+  }
+
+  function field(parent, label, value, cls) {
+    if (!value) { return; }
+    var f = h("div", "field", null, parent);
+    h("div", "k", label, f);
+    h("div", "v" + (cls ? " " + cls : ""), value, f);
+  }
+
+  function renderDetail() {
+    var box = $("detail"); box.textContent = "";
+    var c = selected && byKey[selected];
+    if (!c) {
+      h("p", "muted", loaded ? "Select a concept on the map to see its definition, public wording, owner and review dates." : "Details appear here once the register has loaded.", box);
+      h("p", "note", "Branches group concepts by service area, or by status when you switch the grouping. Dot colour shows confidence status. Dashed lines join related concepts. A concept used by several service areas appears under each of them.", box);
+      return;
+    }
+    h("h2", null, c.name, box);
+    if (c.id) { h("div", "cid", c.id, box); }
+    var pill = h("span", "pill st-" + c.skey, c.status || "No status", box);
+    pill.setAttribute("data-s", c.skey);
+    field(box, "Public-facing term", c.pub);
+    field(box, "Definition", c.def);
+    field(box, "Legal / statutory term", c.legal);
+    field(box, "Synonyms & variants", c.syn);
+    field(box, "Service areas", c.areas.join(", "));
+    field(box, "Disputes & notes", c.disputes);
+    field(box, "Owner", c.owner);
+    field(box, "Public term tested", c.tested ? "Yes" : "No");
+    field(box, "Last reviewed", fdate(c.last));
+    var overdue = c.next && c.next < todayIso() && c.skey !== "deprecated";
+    field(box, "Next review due", fdate(c.next) + (overdue ? " — overdue" : ""), overdue ? "warn" : "");
+
+    var rel = [];
+    c.rel.forEach(function (k) { if (byKey[k] && rel.indexOf(k) < 0) { rel.push(k); } });
+    concepts.forEach(function (x) { if (x.rel.indexOf(c.key) >= 0 && rel.indexOf(x.key) < 0) { rel.push(x.key); } });
+    if (rel.length) {
+      var f = h("div", "field", null, box);
+      h("div", "k", "Related concepts", f);
+      var wrap = h("div", "rels", null, f);
+      rel.forEach(function (k) {
+        var b = h("button", null, byKey[k].name, wrap); b.type = "button";
+        b.addEventListener("click", function () { selected = k; renderDetail(); applyFocus(); });
+      });
+    }
+  }
+
+  /* ---------- pan and zoom ---------- */
+  var moved = false;
+  function applyView() { stage.setAttribute("transform", "translate(" + view.x + " " + view.y + ") scale(" + view.k + ")"); }
+  function geom() {
+    var r = svg.getBoundingClientRect();
+    return { r: r, s: Math.min(r.width, r.height) || 1 };
+  }
+  function toUser(cx, cy) {
+    var q = geom(), ox = (q.r.width - q.s) / 2, oy = (q.r.height - q.s) / 2;
+    return { x: ((cx - q.r.left - ox) / q.s) * 2 * ext - ext, y: ((cy - q.r.top - oy) / q.s) * 2 * ext - ext };
+  }
+  function zoomAt(ux, uy, nk) {
+    nk = Math.max(0.5, Math.min(8, nk));
+    view.x = ux - (ux - view.x) * (nk / view.k);
+    view.y = uy - (uy - view.y) * (nk / view.k);
+    view.k = nk; applyView();
+  }
+  function resetView() { view = { k: 1, x: 0, y: 0 }; applyView(); }
+
+  var ptrs = new Map(), drag = null, pinch = null;
+  svg.addEventListener("wheel", function (e) {
+    e.preventDefault();
+    var u = toUser(e.clientX, e.clientY);
+    zoomAt(u.x, u.y, view.k * Math.exp(-e.deltaY * 0.0015));
+  }, { passive: false });
+  svg.addEventListener("pointerdown", function (e) {
+    ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (ptrs.size === 1) { drag = { x: e.clientX, y: e.clientY, vx: view.x, vy: view.y, cap: false }; moved = false; }
+    else if (ptrs.size === 2) {
+      var a = Array.from(ptrs.values());
+      pinch = { d: Math.hypot(a[0].x - a[1].x, a[0].y - a[1].y) || 1, k: view.k };
+      drag = null; moved = true;
+    }
+  });
+  svg.addEventListener("pointermove", function (e) {
+    if (!ptrs.has(e.pointerId)) { return; }
+    ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (ptrs.size === 2 && pinch) {
+      var a = Array.from(ptrs.values());
+      var d = Math.hypot(a[0].x - a[1].x, a[0].y - a[1].y);
+      var m = toUser((a[0].x + a[1].x) / 2, (a[0].y + a[1].y) / 2);
+      zoomAt(m.x, m.y, pinch.k * d / pinch.d);
+      return;
+    }
+    if (drag) {
+      var dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+      if (!drag.cap && Math.hypot(dx, dy) > 5) {
+        drag.cap = true; moved = true;
+        try { svg.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+        svg.classList.add("grabbing");
+      }
+      if (drag.cap) {
+        var f = 2 * ext / geom().s;
+        view.x = drag.vx + dx * f; view.y = drag.vy + dy * f; applyView();
+      }
+    }
+  });
+  function endPtr(e) {
+    ptrs.delete(e.pointerId);
+    if (ptrs.size < 2) { pinch = null; }
+    if (ptrs.size === 0) { drag = null; svg.classList.remove("grabbing"); }
+  }
+  svg.addEventListener("pointerup", endPtr);
+  svg.addEventListener("pointercancel", endPtr);
+  svg.addEventListener("click", function () {
+    if (moved) { return; }
+    if (selected) { selected = null; renderDetail(); applyFocus(); }
+  });
+  $("z-in").addEventListener("click", function () { zoomAt(0, 0, view.k * 1.3); });
+  $("z-out").addEventListener("click", function () { zoomAt(0, 0, view.k / 1.3); });
+  $("z-fit").addEventListener("click", resetView);
+
+  /* ---------- controls ---------- */
+  function setGroup(g) {
+    groupBy = g;
+    $("g-area").setAttribute("aria-pressed", g === "area" ? "true" : "false");
+    $("g-status").setAttribute("aria-pressed", g === "status" ? "true" : "false");
+    resetView(); render();
+  }
+  $("g-area").addEventListener("click", function () { setGroup("area"); });
+  $("g-status").addEventListener("click", function () { setGroup("status"); });
+  $("b-links").addEventListener("click", function () {
+    showLinks = !showLinks;
+    $("b-links").setAttribute("aria-pressed", showLinks ? "true" : "false");
+    render();
+  });
+  $("b-refresh").addEventListener("click", function () { load(true); });
+
+  /* ---------- start ---------- */
+  render();
+  load(false).then(function () {
+    setInterval(function () { if (document.visibilityState === "visible") { load(false); } }, POLL_MS);
+    document.addEventListener("visibilitychange", function () { if (document.visibilityState === "visible") { load(false); } });
+  });
+})();
+</script>
+</body>
+</html>
