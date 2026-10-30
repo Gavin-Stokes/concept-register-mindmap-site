@@ -63,6 +63,9 @@
   @media (max-width: 880px) { .grid { grid-template-columns:1fr; } }
   .mapcard { position:relative; background:var(--surface); border:1px solid var(--border); border-radius:12px; overflow:hidden; }
   #map { display:block; width:100%; height:auto; aspect-ratio:1/1; max-height:82vh; touch-action:none; cursor:grab; user-select:none; -webkit-user-select:none; }
+  #view-map:fullscreen { border-radius:0; background:var(--bg); }
+  #view-map:-webkit-full-screen { border-radius:0; background:var(--bg); }
+  #view-map:fullscreen #map, #view-map:-webkit-full-screen #map { max-height:100vh; }
   #map.grabbing { cursor:grabbing; }
   .zoom { position:absolute; right:10px; top:10px; display:flex; flex-direction:column; gap:6px; }
   .zoom button { width:34px; height:34px; border:1px solid var(--border); background:var(--surface); color:var(--text);
@@ -151,7 +154,7 @@
         <div class="zoom">
           <button type="button" id="z-in" aria-label="Zoom in">+</button>
           <button type="button" id="z-out" aria-label="Zoom out">−</button>
-          <button type="button" id="z-fit" aria-label="Reset view">⤢</button>
+          <button type="button" id="z-fit" aria-label="Full screen">⤢</button>
         </div>
         <div class="hint">Drag to pan · scroll or pinch to zoom · tap a concept for details</div>
       </div>
@@ -699,7 +702,14 @@
   });
   $("z-in").addEventListener("click", function () { zoomAt(0, 0, view.k * 1.3); });
   $("z-out").addEventListener("click", function () { zoomAt(0, 0, view.k / 1.3); });
-  $("z-fit").addEventListener("click", resetView);
+  $("z-fit").addEventListener("click", function () {
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    } else {
+      $("view-map").requestFullscreen().catch(function () {});
+    }
+  });
+  document.addEventListener("fullscreenchange", function () { if (document.fullscreenElement) { resetView(); } });
 
   /* ---------- controls ---------- */
   function setGroup(g) {
