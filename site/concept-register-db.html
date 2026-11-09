@@ -1,0 +1,804 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Concept Register</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',system-ui,sans-serif;font-size:14px;background:#fff;color:#1a1a1a;overflow:hidden;height:100vh}
+#app{display:flex;flex-direction:column;height:100vh}
+
+/* Toolbar */
+#toolbar{display:flex;align-items:center;gap:8px;padding:8px 14px;border-bottom:1px solid #e5e5e5;flex-shrink:0;background:#fff}
+.db-icon{font-size:18px}
+.db-title{font-size:16px;font-weight:600;margin-right:4px}
+.toolbar-sep{width:1px;height:20px;background:#e5e5e5}
+.btn-primary{background:#0052cc;color:#fff;border:none;border-radius:6px;padding:5px 12px;font:inherit;font-size:13px;cursor:pointer;font-weight:500;white-space:nowrap}
+.btn-primary:hover{background:#0041a3}
+.search-inp{border:1px solid #ddd;border-radius:6px;padding:5px 10px;font:inherit;font-size:13px;outline:none;width:180px}
+.search-inp:focus{border-color:#0052cc}
+.filter-sel{border:1px solid #ddd;border-radius:6px;padding:5px 10px;font:inherit;font-size:13px;outline:none;background:#fff;cursor:pointer;max-width:150px}
+.filter-sel:focus{border-color:#0052cc}
+.row-count{margin-left:auto;font-size:12px;color:#999;white-space:nowrap}
+.btn-secondary{background:none;color:#555;border:1px solid #ddd;border-radius:6px;padding:5px 12px;font:inherit;font-size:13px;cursor:pointer;white-space:nowrap}
+.btn-secondary:hover{background:#f5f5f5;border-color:#bbb}
+
+/* Table */
+#table-wrap{flex:1;overflow:auto;position:relative}
+table{border-collapse:collapse;min-width:max-content;width:100%}
+col.c-num{width:40px} col.c-name{min-width:220px} col.c-id{width:95px} col.c-status{width:115px}
+col.c-pub{min-width:180px} col.c-def{min-width:240px} col.c-areas{min-width:180px}
+col.c-tested{width:65px} col.c-legal{min-width:190px} col.c-syn{min-width:180px}
+col.c-owner{min-width:160px} col.c-last{width:110px} col.c-next{width:110px}
+col.c-trigger{width:120px} col.c-related{min-width:180px} col.c-dep{min-width:130px}
+col.c-disputes{min-width:160px} col.c-act{width:48px}
+thead th{
+  position:sticky;top:0;z-index:3;background:#fafafa;border-bottom:1px solid #e5e5e5;
+  border-right:1px solid #e5e5e5;padding:0 8px;height:34px;font-size:12px;font-weight:500;
+  color:#666;white-space:nowrap;cursor:default;user-select:none
+}
+thead th.sortable{cursor:pointer}
+thead th.sortable:hover{background:#f0f0f0;color:#333}
+thead th.sorted{color:#0052cc}
+.th-name{position:sticky;left:40px;z-index:4!important;background:#fafafa}
+.th-num{position:sticky;left:0;z-index:4!important;background:#fafafa;text-align:right;padding-right:6px}
+tbody tr{border-bottom:1px solid #f0f0f0}
+tbody tr:hover{background:#fafafa}
+tbody tr:hover .row-acts{opacity:1}
+td{border-right:1px solid #f0f0f0;padding:0 8px;height:34px;vertical-align:middle;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:280px}
+.td-num{position:sticky;left:0;z-index:2;background:inherit;text-align:right;padding-right:6px;font-size:11px;color:#bbb;min-width:40px}
+.td-name{position:sticky;left:40px;z-index:2;background:inherit;font-weight:500;cursor:pointer;color:#0052cc}
+.td-name:hover{text-decoration:underline}
+.td-edit{cursor:text}
+.td-edit:hover{background:#f5f5f5}
+td.td-check{text-align:center;cursor:pointer;font-size:15px}
+td.td-check:hover{background:#f5f5f5}
+td.td-sel{cursor:pointer}
+td.td-sel:hover{background:#f5f5f5}
+td.td-ms{cursor:pointer}
+td.td-ms:hover{background:#f5f5f5}
+td.overdue .d-val{color:#b32020;font-weight:500}
+.row-acts{opacity:0;display:flex;gap:2px;justify-content:center}
+.row-acts button{border:none;background:none;cursor:pointer;padding:3px 4px;border-radius:4px;color:#aaa;font-size:13px;line-height:1}
+.row-acts button:hover{background:#e8e8e8;color:#333}
+.add-row{cursor:pointer}
+.add-row td{color:#aaa;font-size:13px}
+.add-row:hover td{background:#fafafa;color:#333}
+
+/* Badges */
+.badge{display:inline-flex;align-items:center;border-radius:4px;padding:1px 7px;font-size:12px;font-weight:500}
+.ba{background:#d3f5e4;color:#0a7a4a}
+.bc{background:#ffecd4;color:#a05a00}
+.bd{background:#dce8ff;color:#2758b0}
+
+/* Chips */
+.chip{display:inline-flex;align-items:center;gap:3px;border-radius:4px;padding:1px 6px;font-size:11px;background:#f0f0f0;color:#555;margin:1px}
+.chip-rel{background:#e8f0ff;color:#2758b0;cursor:pointer}
+.chip-rel:hover{background:#dce8ff}
+
+/* Inline popup editor */
+#popup{position:fixed;z-index:200;background:#fff;border:1px solid #d0d0d0;border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,.15);min-width:200px;display:none}
+#popup input[type=text],#popup input[type=date],#popup textarea{display:block;width:100%;border:none;padding:8px 10px;font:inherit;font-size:13px;outline:none;background:transparent;resize:none}
+#popup textarea{min-height:80px;resize:vertical}
+.pop-opts{border-top:1px solid #eee;max-height:220px;overflow-y:auto}
+.pop-opt{display:flex;align-items:center;gap:8px;padding:7px 10px;cursor:pointer;font-size:13px}
+.pop-opt:hover{background:#f5f5f5}
+.pop-opt.active{background:#f0f7ff}
+.pop-chips{display:flex;flex-wrap:wrap;gap:4px;padding:6px 8px;min-height:32px;border-bottom:1px solid #eee}
+.pop-chip{display:flex;align-items:center;gap:3px;background:#e8f0ff;color:#2758b0;border-radius:4px;padding:2px 6px;font-size:12px}
+.pop-chip button{border:none;background:none;cursor:pointer;color:inherit;padding:0;line-height:1;font-size:14px}
+
+/* Modal */
+#overlay{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:300;display:none;align-items:flex-start;justify-content:center;padding:32px 20px;overflow-y:auto}
+#modal{background:#fff;border-radius:10px;width:720px;max-width:100%;box-shadow:0 8px 40px rgba(0,0,0,.22);position:relative}
+#modal-hd{padding:20px 20px 12px;border-bottom:1px solid #eee;display:flex;align-items:flex-start;gap:8px}
+#modal-name{flex:1;font:600 20px/1.3 'Inter',system-ui,sans-serif;border:none;outline:none;background:transparent;resize:none;min-height:28px;overflow:hidden}
+#modal-close{background:none;border:none;cursor:pointer;color:#aaa;font-size:22px;padding:2px 6px;border-radius:4px;line-height:1;flex-shrink:0}
+#modal-close:hover{background:#f0f0f0;color:#333}
+#modal-body{padding:16px 20px 20px}
+.mrow{display:flex;align-items:flex-start;gap:12px;margin-bottom:10px}
+.mlabel{width:160px;font-size:11.5px;color:#999;text-transform:uppercase;letter-spacing:.05em;flex-shrink:0;padding-top:8px}
+.mval{flex:1;min-width:0}
+.mval input,.mval textarea,.mval select{width:100%;border:1px solid transparent;border-radius:5px;padding:6px 8px;font:inherit;font-size:13px;background:transparent;outline:none;resize:vertical}
+.mval input:hover,.mval textarea:hover,.mval select:hover{background:#f5f5f5;border-color:#e0e0e0}
+.mval input:focus,.mval textarea:focus,.mval select:focus{background:#fff;border-color:#0052cc;box-shadow:0 0 0 2px rgba(0,82,204,.12)}
+.mval textarea{min-height:56px}
+.mchips{display:flex;flex-wrap:wrap;gap:4px;padding:6px 8px;border:1px solid transparent;border-radius:5px;min-height:36px;cursor:pointer}
+.mchips:hover{background:#f5f5f5;border-color:#e0e0e0}
+.mchip{display:flex;align-items:center;gap:3px;background:#e8f0ff;color:#2758b0;border-radius:4px;padding:2px 7px;font-size:12px}
+.mchip button{border:none;background:none;cursor:pointer;color:inherit;padding:0;line-height:1;font-size:14px}
+.mchip.mchip-rel{cursor:pointer}
+.mchip.mchip-rel:hover{background:#dce8ff}
+.m-add-sel{border:1px dashed #ccc;border-radius:4px;padding:2px 6px;font:inherit;font-size:12px;background:transparent;cursor:pointer;color:#888;margin:2px}
+.m-add-sel:hover{border-color:#0052cc;color:#0052cc}
+.m-rel-search{border:1px dashed #ccc;border-radius:4px;padding:2px 8px;font:inherit;font-size:12px;outline:none;min-width:120px;margin:2px}
+.m-rel-search:focus{border-color:#0052cc}
+.m-del-btn{display:block;margin-top:16px;padding-top:14px;border-top:1px solid #eee}
+.m-del-btn button{background:none;border:1px solid #e8e8e8;color:#aaa;border-radius:6px;padding:5px 14px;font:inherit;font-size:13px;cursor:pointer}
+.m-del-btn button:hover{border-color:#e57373;color:#b32020;background:#fff5f5}
+
+/* Loading/error */
+#loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#999;font-size:14px;flex-direction:column;gap:12px}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="toolbar">
+    <span class="db-icon">🗂</span>
+    <span class="db-title">Concept Register</span>
+    <div class="toolbar-sep"></div>
+    <button class="btn-primary" id="btn-add">+ New</button>
+    <input class="search-inp" id="q" type="search" placeholder="Search…">
+    <select class="filter-sel" id="f-status">
+      <option value="">All statuses</option>
+      <option>Agreed</option><option>Contested</option><option>Draft</option>
+    </select>
+    <select class="filter-sel" id="f-area"><option value="">All areas</option></select>
+    <span class="row-count" id="row-count"></span>
+    <button class="btn-secondary" id="btn-export">↓ Export</button>
+    <label class="btn-secondary" id="btn-import-label">↑ Import<input type="file" id="btn-import" accept=".json" style="display:none"></label>
+    <a class="btn-secondary" href="./" target="_blank" rel="noopener noreferrer" style="text-decoration:none">Mind Map ↗</a>
+  </div>
+  <div id="table-wrap">
+    <div id="loading">Loading…</div>
+    <table id="tbl" style="display:none">
+      <colgroup>
+        <col class="c-num"><col class="c-name"><col class="c-id"><col class="c-status">
+        <col class="c-pub"><col class="c-def"><col class="c-areas"><col class="c-tested">
+        <col class="c-legal"><col class="c-syn"><col class="c-owner"><col class="c-last">
+        <col class="c-next"><col class="c-trigger"><col class="c-related"><col class="c-dep">
+        <col class="c-disputes"><col class="c-act">
+      </colgroup>
+      <thead>
+        <tr>
+          <th class="th-num"></th>
+          <th class="th-name sortable" data-s="name">Staff-facing term</th>
+          <th class="sortable" data-s="conceptId">Concept ID</th>
+          <th class="sortable" data-s="status">Status</th>
+          <th>Public-facing term</th>
+          <th>Definition</th>
+          <th>Service areas</th>
+          <th>Tested?</th>
+          <th>Legal term</th>
+          <th>Synonyms &amp; variants</th>
+          <th>Owner</th>
+          <th class="sortable" data-s="last">Last reviewed</th>
+          <th class="sortable" data-s="next">Next review</th>
+          <th>Review trigger</th>
+          <th>Related concepts</th>
+          <th>Deprecated terms</th>
+          <th>Disputes &amp; notes</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Inline popup -->
+<div id="popup"></div>
+
+<!-- Record modal -->
+<div id="overlay">
+  <div id="modal">
+    <div id="modal-hd">
+      <textarea id="modal-name" rows="1" placeholder="Staff-facing term…"></textarea>
+      <button id="modal-save" class="btn-primary" style="flex-shrink:0;font-size:13px;padding:5px 14px">Save &amp; close</button>
+      <button id="modal-close">×</button>
+    </div>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+var AREAS=["Adult Social Care","Benefits","Children's Services","Customer Services","Finance","Housing","Schools"];
+var STATUS_OPTS=["Agreed","Contested","Draft"];
+var TRIGGER_OPTS=["Scheduled","Team request"];
+
+// State
+var db=null, all=[], sorted=[], sfld=null, sdir=1, openId=null, popTimer=null;
+
+// Populate area filter
+var asel=document.getElementById("f-area");
+AREAS.forEach(function(a){var o=document.createElement("option");o.textContent=a;asel.appendChild(o);});
+
+// Utils
+function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,8);}
+function td8(){return new Date().toISOString().slice(0,10);}
+function fdt(s){if(!s)return"";var d=new Date(s+"T00:00:00");return isNaN(d)?s:d.toLocaleDateString("en-IE",{day:"numeric",month:"short",year:"numeric"});}
+function sk(s){var k=String(s||"").toLowerCase();return k==="agreed"?"a":k==="contested"?"c":k==="draft"?"d":"";}
+function find(id){for(var i=0;i<all.length;i++){if(all[i]._id===id)return all[i];}return null;}
+
+// DB helpers
+function upd(id,fields){if(!db)return;db.collection("concepts").doc(id).update(fields).catch(function(e){console.error(e);});}
+function del(id){if(!db)return;db.collection("concepts").doc(id).delete().catch(function(e){console.error(e);});}
+function addNew(){
+  if(!db)return;
+  var id=uid();
+  db.collection("concepts").doc(id).set({conceptId:"",name:"Untitled concept",pub:"",def:"",legal:"",syn:"",deprecated:"",disputes:"",status:"Draft",areas:[],tested:false,owner:"",dateAdded:td8(),last:"",next:"",reviewTrigger:"",related:[]})
+    .then(function(){openModal(id);}).catch(function(e){console.error(e);});
+}
+
+// Filter + sort
+function visible(){
+  var q=document.getElementById("q").value.trim().toLowerCase();
+  var fs=document.getElementById("f-status").value;
+  var fa=document.getElementById("f-area").value;
+  var v=all.filter(function(c){
+    if(fs&&c.status!==fs)return false;
+    if(fa&&(!c.areas||c.areas.indexOf(fa)<0))return false;
+    if(q){var h=[c.name,c.pub,c.def,c.conceptId,c.syn,c.legal].join(" ").toLowerCase();if(h.indexOf(q)<0)return false;}
+    return true;
+  });
+  v.sort(function(a,b){
+    var af=sfld||"conceptId",av=String(a[af]||""),bv=String(b[af]||"");
+    return av.localeCompare(bv,"en",{numeric:true})*sdir;
+  });
+  return v;
+}
+
+// Render table
+function render(){
+  var vis=visible();
+  document.getElementById("row-count").textContent=vis.length+(vis.length===1?" concept":" concepts");
+  var tbody=document.getElementById("tbody");
+  tbody.innerHTML="";
+  var today=td8();
+  vis.forEach(function(c,i){
+    var s=sk(c.status);
+    var badge=s?'<span class="badge b'+s+'">'+esc(c.status)+'</span>':"";
+    var ahtml=(c.areas||[]).slice(0,2).map(function(a){return'<span class="chip">'+esc(a)+'</span>';}).join("")+((c.areas||[]).length>2?'<span class="chip">+'+(c.areas.length-2)+'</span>':"");
+    var rhtml=(c.related||[]).slice(0,2).map(function(id){var r=find(id);return r?'<span class="chip chip-rel" data-rel="'+esc(id)+'">'+esc(r.name)+'</span>':"";}).join("")+((c.related||[]).length>2?'<span class="chip">+'+(c.related.length-2)+'</span>':"");
+    var ov=c.next&&c.next<today;
+    var tr=document.createElement("tr");
+    tr.dataset.id=c._id;
+    tr.innerHTML=
+      '<td class="td-num">'+(i+1)+'</td>'+
+      '<td class="td-name" data-f="name" data-id="'+esc(c._id)+'">'+esc(c.name||"Untitled")+'</td>'+
+      '<td class="td-edit" data-f="conceptId" data-id="'+esc(c._id)+'">'+esc(c.conceptId)+'</td>'+
+      '<td class="td-sel" data-f="status" data-id="'+esc(c._id)+'">'+badge+'</td>'+
+      '<td class="td-edit" data-f="pub" data-id="'+esc(c._id)+'">'+esc(c.pub)+'</td>'+
+      '<td class="td-edit" data-f="def" data-id="'+esc(c._id)+'">'+esc(c.def)+'</td>'+
+      '<td class="td-ms" data-f="areas" data-id="'+esc(c._id)+'">'+ahtml+'</td>'+
+      '<td class="td-check" data-f="tested" data-id="'+esc(c._id)+'">'+(c.tested?"✓":"")+'</td>'+
+      '<td class="td-edit" data-f="legal" data-id="'+esc(c._id)+'">'+esc(c.legal)+'</td>'+
+      '<td class="td-edit" data-f="syn" data-id="'+esc(c._id)+'">'+esc(c.syn)+'</td>'+
+      '<td class="td-edit" data-f="owner" data-id="'+esc(c._id)+'">'+esc(c.owner)+'</td>'+
+      '<td class="td-edit" data-f="last" data-id="'+esc(c._id)+'">'+fdt(c.last)+'</td>'+
+      '<td class="td-edit'+(ov?' overdue':'')+'\" data-f="next" data-id="'+esc(c._id)+'"><span class="d-val">'+fdt(c.next)+'</span></td>'+
+      '<td class="td-sel" data-f="reviewTrigger" data-id="'+esc(c._id)+'">'+esc(c.reviewTrigger)+'</td>'+
+      '<td class="td-ms" data-f="related" data-id="'+esc(c._id)+'">'+rhtml+'</td>'+
+      '<td class="td-edit" data-f="deprecated" data-id="'+esc(c._id)+'">'+esc(c.deprecated)+'</td>'+
+      '<td class="td-edit" data-f="disputes" data-id="'+esc(c._id)+'">'+esc(c.disputes)+'</td>'+
+      '<td><div class="row-acts"><button class="r-open" data-id="'+esc(c._id)+'" title="Open">⊞</button><button class="r-del" data-id="'+esc(c._id)+'" title="Delete">⋯</button></div></td>';
+    tbody.appendChild(tr);
+  });
+  // Add row
+  var ar=document.createElement("tr");ar.className="add-row";ar.id="add-row-btn";
+  ar.innerHTML='<td class="td-num"></td><td colspan="17">+ New</td>';
+  tbody.appendChild(ar);
+}
+
+// --- Popup editor ---
+var pop=document.getElementById("popup");
+var popState=null; // {id, field, cleanup}
+
+function closePop(){
+  if(popState&&popState.cleanup)popState.cleanup();
+  pop.style.display="none";pop.innerHTML="";popState=null;
+  clearTimeout(popTimer);
+}
+
+function positionPop(cell){
+  var r=cell.getBoundingClientRect();
+  var pw=Math.max(cell.offsetWidth+2,220);
+  var left=Math.min(r.left,window.innerWidth-pw-8);
+  var top=r.bottom+2;
+  if(top+240>window.innerHeight)top=r.top-242;
+  pop.style.cssText="display:block;left:"+left+"px;top:"+top+"px;min-width:"+pw+"px";
+}
+
+function openTextPop(cell,id,field,ml){
+  closePop();
+  var c=find(id);if(!c)return;
+  positionPop(cell);
+  var el=ml?document.createElement("textarea"):document.createElement("input");
+  if(!ml){el.type="text";}else{el.rows=3;}
+  el.value=c[field]||"";
+  el.style.cssText="display:block;width:100%;border:none;padding:8px 10px;font:inherit;font-size:13px;outline:none;background:transparent;"+(ml?"min-height:70px;resize:vertical;":"");
+  pop.appendChild(el);
+  el.focus();ml?el.setSelectionRange(el.value.length,el.value.length):el.select();
+  function save(){var v=el.value.trim();if(v!==(c[field]||"")){var u={};u[field]=v;upd(id,u);}}
+  el.addEventListener("blur",function(){save();closePop();});
+  el.addEventListener("keydown",function(e){
+    if(e.key==="Escape"){closePop();return;}
+    if(e.key==="Enter"&&!ml){save();closePop();e.preventDefault();}
+    if(e.key==="Tab"){save();closePop();e.preventDefault();}
+  });
+  popState={id:id,field:field,cleanup:null};
+}
+
+function openDatePop(cell,id,field){
+  closePop();
+  var c=find(id);if(!c)return;
+  positionPop(cell);
+  var inp=document.createElement("input");inp.type="date";inp.value=c[field]||"";
+  inp.style.cssText="display:block;width:100%;border:none;padding:8px 10px;font:inherit;font-size:13px;outline:none;background:transparent;";
+  pop.appendChild(inp);inp.focus();
+  inp.addEventListener("change",function(){var u={};u[field]=inp.value;upd(id,u);closePop();});
+  inp.addEventListener("blur",function(){closePop();});
+  inp.addEventListener("keydown",function(e){if(e.key==="Escape")closePop();});
+  popState={id:id,field:field,cleanup:null};
+}
+
+function openSelPop(cell,id,field,opts){
+  closePop();
+  var c=find(id);if(!c)return;
+  positionPop(cell);
+  var box=document.createElement("div");box.className="pop-opts";
+  var none=document.createElement("div");none.className="pop-opt";none.textContent="— None —";none.style.color="#aaa";
+  none.addEventListener("mousedown",function(e){e.preventDefault();var u={};u[field]="";upd(id,u);closePop();});
+  box.appendChild(none);
+  opts.forEach(function(o){
+    var d=document.createElement("div");d.className="pop-opt"+(o===c[field]?" active":"");
+    var s2=sk(o);d.innerHTML=s2?'<span class="badge b'+s2+'">'+esc(o)+'</span>':esc(o);
+    d.addEventListener("mousedown",function(e){e.preventDefault();var u={};u[field]=o;upd(id,u);closePop();});
+    box.appendChild(d);
+  });
+  pop.appendChild(box);
+  pop.tabIndex=-1;pop.focus();
+  pop.addEventListener("blur",function(){popTimer=setTimeout(closePop,150);});
+  popState={id:id,field:field,cleanup:null};
+}
+
+function openMsPop(cell,id,field,opts){
+  closePop();
+  var c=find(id);if(!c)return;
+  var cur=(c[field]||[]).slice();
+  positionPop(cell);
+  var chips=document.createElement("div");chips.className="pop-chips";
+  var optBox=document.createElement("div");optBox.className="pop-opts";
+  function rebChips(){
+    chips.innerHTML="";
+    cur.forEach(function(v){
+      var ch=document.createElement("span");ch.className="pop-chip";
+      ch.innerHTML=esc(v)+' <button type="button">×</button>';
+      ch.querySelector("button").addEventListener("mousedown",function(e){
+        e.preventDefault();e.stopPropagation();
+        cur=cur.filter(function(x){return x!==v;});
+        var u={};u[field]=cur.slice();upd(id,u);rebChips();rebOpts();
+      });
+      chips.appendChild(ch);
+    });
+  }
+  function rebOpts(){
+    optBox.innerHTML="";
+    opts.forEach(function(o){
+      var on=cur.indexOf(o)>=0;
+      var d=document.createElement("div");d.className="pop-opt";
+      d.innerHTML='<input type="checkbox"'+(on?" checked":"")+' style="margin:0;flex-shrink:0"> <span>'+esc(o)+'</span>';
+      d.addEventListener("mousedown",function(e){
+        e.preventDefault();e.stopPropagation();
+        if(on){cur=cur.filter(function(x){return x!==o;});}else{cur=cur.concat([o]);}
+        var u={};u[field]=cur.slice();upd(id,u);on=!on;d.querySelector("input").checked=on;rebChips();
+      });
+      optBox.appendChild(d);
+    });
+  }
+  rebChips();rebOpts();
+  pop.appendChild(chips);pop.appendChild(optBox);
+  pop.tabIndex=-1;pop.focus();
+  pop.addEventListener("blur",function(){popTimer=setTimeout(closePop,200);});
+  popState={id:id,field:field,cleanup:null};
+}
+
+function openRelPop(cell,id){
+  closePop();
+  var c=find(id);if(!c)return;
+  var cur=(c.related||[]).slice();
+  positionPop(cell);
+  var chips=document.createElement("div");chips.className="pop-chips";
+  var sinp=document.createElement("input");sinp.type="text";sinp.placeholder="Search concepts…";
+  sinp.style.cssText="display:block;width:100%;border:none;border-bottom:1px solid #eee;padding:8px 10px;font:inherit;font-size:13px;outline:none;";
+  var optBox=document.createElement("div");optBox.className="pop-opts";
+  function rebChips(){
+    chips.innerHTML="";
+    cur.forEach(function(rid){
+      var r=find(rid);if(!r)return;
+      var ch=document.createElement("span");ch.className="pop-chip";
+      ch.innerHTML=esc(r.name)+' <button type="button">×</button>';
+      ch.querySelector("button").addEventListener("mousedown",function(e){
+        e.preventDefault();e.stopPropagation();
+        cur=cur.filter(function(x){return x!==rid;});
+        upd(id,{related:cur.slice()});rebChips();rebOpts();
+      });
+      chips.appendChild(ch);
+    });
+  }
+  function rebOpts(){
+    var q=sinp.value.toLowerCase();
+    optBox.innerHTML="";
+    all.filter(function(r){
+      return r._id!==id&&(r.name.toLowerCase().indexOf(q)>=0||String(r.conceptId).toLowerCase().indexOf(q)>=0);
+    }).slice(0,15).forEach(function(r){
+      var on=cur.indexOf(r._id)>=0;
+      var d=document.createElement("div");d.className="pop-opt";
+      d.innerHTML='<input type="checkbox"'+(on?" checked":"")+' style="margin:0;flex-shrink:0"> <span>'+esc(r.conceptId)+' — '+esc(r.name)+'</span>';
+      d.addEventListener("mousedown",function(e){
+        e.preventDefault();e.stopPropagation();
+        if(on){cur=cur.filter(function(x){return x!==r._id;});}else{cur=cur.concat([r._id]);}
+        upd(id,{related:cur.slice()});on=!on;d.querySelector("input").checked=on;rebChips();
+      });
+      optBox.appendChild(d);
+    });
+  }
+  sinp.addEventListener("input",rebOpts);
+  rebChips();rebOpts();
+  pop.appendChild(chips);pop.appendChild(sinp);pop.appendChild(optBox);
+  sinp.focus();
+  sinp.addEventListener("blur",function(){popTimer=setTimeout(closePop,200);});
+  pop.addEventListener("mousedown",function(){clearTimeout(popTimer);});
+  popState={id:id,field:"related",cleanup:null};
+}
+
+// --- Modal ---
+function openModal(id){
+  var c=find(id);if(!c)return;
+  openId=id;
+  var mn=document.getElementById("modal-name");
+  mn.value=c.name||"";
+  mn.style.height="auto";mn.style.height=mn.scrollHeight+"px";
+  buildModalBody(c);
+  document.getElementById("overlay").style.display="flex";
+  mn.focus();
+}
+
+function closeModal(){
+  document.getElementById("overlay").style.display="none";
+  openId=null;
+  // remove any floating rel-dropdown
+  document.querySelectorAll(".float-rel-dd").forEach(function(el){el.remove();});
+}
+
+function buildModalBody(c){
+  var body=document.getElementById("modal-body");
+  body.innerHTML="";
+
+  function row(label){
+    var d=document.createElement("div");d.className="mrow";
+    var l=document.createElement("div");l.className="mlabel";l.textContent=label;
+    var v=document.createElement("div");v.className="mval";
+    d.appendChild(l);d.appendChild(v);body.appendChild(d);
+    return v;
+  }
+  function textField(label,field,ml){
+    var v=row(label);
+    var inp=ml?document.createElement("textarea"):document.createElement("input");
+    if(!ml)inp.type="text";
+    inp.value=c[field]||"";
+    v.appendChild(inp);
+    inp.addEventListener("blur",function(){
+      var val=inp.value;
+      if(val!==(c[field]||"")){var u={};u[field]=val;upd(c._id,u);}
+    });
+  }
+  function selField(label,field,opts){
+    var v=row(label);
+    var sel=document.createElement("select");
+    sel.innerHTML='<option value="">— None —</option>'+opts.map(function(o){return'<option'+(c[field]===o?" selected":"")+'>'+esc(o)+'</option>';}).join("");
+    v.appendChild(sel);
+    sel.addEventListener("change",function(){var u={};u[field]=sel.value;upd(c._id,u);});
+  }
+  function dateField(label,field){
+    var v=row(label);
+    var inp=document.createElement("input");inp.type="date";inp.value=c[field]||"";
+    v.appendChild(inp);
+    inp.addEventListener("change",function(){var u={};u[field]=inp.value;upd(c._id,u);});
+  }
+  function checkField(label,field){
+    var v=row(label);
+    var lbl=document.createElement("label");lbl.style.cssText="display:flex;align-items:center;gap:8px;padding:6px 8px;cursor:pointer;";
+    var inp=document.createElement("input");inp.type="checkbox";inp.checked=!!c[field];
+    lbl.appendChild(inp);
+    lbl.appendChild(document.createTextNode("Yes"));
+    v.appendChild(lbl);
+    inp.addEventListener("change",function(){var u={};u[field]=inp.checked;upd(c._id,u);});
+  }
+  function msField(label,field,opts){
+    var v=row(label);
+    var wrap=document.createElement("div");wrap.className="mchips";
+    v.appendChild(wrap);
+    var cur=(c[field]||[]).slice();
+    function rebuild(){
+      wrap.innerHTML="";
+      cur.forEach(function(val){
+        var ch=document.createElement("span");ch.className="mchip";
+        ch.innerHTML=esc(val)+' <button type="button">×</button>';
+        ch.querySelector("button").addEventListener("click",function(){
+          cur=cur.filter(function(x){return x!==val;});
+          var u={};u[field]=cur.slice();upd(c._id,u);rebuild();
+        });
+        wrap.appendChild(ch);
+      });
+      var addSel=document.createElement("select");addSel.className="m-add-sel";
+      addSel.innerHTML='<option value="">+ Add…</option>'+opts.filter(function(o){return cur.indexOf(o)<0;}).map(function(o){return'<option>'+esc(o)+'</option>';}).join("");
+      addSel.addEventListener("change",function(){
+        if(!addSel.value)return;
+        cur=cur.concat([addSel.value]);
+        var u={};u[field]=cur.slice();upd(c._id,u);rebuild();
+      });
+      wrap.appendChild(addSel);
+    }
+    rebuild();
+  }
+  function relField(label){
+    var v=row(label);
+    var wrap=document.createElement("div");wrap.className="mchips";
+    v.appendChild(wrap);
+    var cur=(c.related||[]).slice();
+    function rebuild(){
+      wrap.innerHTML="";
+      cur.forEach(function(rid){
+        var r=find(rid);if(!r)return;
+        var ch=document.createElement("span");ch.className="mchip mchip-rel";
+        ch.innerHTML=esc(r.conceptId)+' '+esc(r.name)+' <button type="button">×</button>';
+        ch.querySelector("button").addEventListener("click",function(e){e.stopPropagation();cur=cur.filter(function(x){return x!==rid;});upd(c._id,{related:cur.slice()});rebuild();});
+        ch.addEventListener("click",function(e){if(e.target.tagName==="BUTTON")return;closeModal();setTimeout(function(){openModal(rid);},40);});
+        wrap.appendChild(ch);
+      });
+      // Search input for adding
+      var sinp=document.createElement("input");sinp.type="text";sinp.placeholder="+ Search to link…";sinp.className="m-rel-search";
+      var dd=document.createElement("div");
+      dd.style.cssText="position:fixed;background:#fff;border:1px solid #ddd;border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,.12);z-index:400;max-height:200px;overflow-y:auto;min-width:260px;display:none;";
+      dd.className="float-rel-dd";
+      document.body.appendChild(dd);
+      function updateDd(){
+        var q=sinp.value.toLowerCase();
+        if(!q){dd.style.display="none";return;}
+        var ms=all.filter(function(r){return r._id!==c._id&&cur.indexOf(r._id)<0&&(r.name.toLowerCase().indexOf(q)>=0||String(r.conceptId).toLowerCase().indexOf(q)>=0);}).slice(0,10);
+        dd.innerHTML="";
+        if(!ms.length){dd.style.display="none";return;}
+        ms.forEach(function(r){
+          var d=document.createElement("div");d.style.cssText="padding:8px 12px;cursor:pointer;font-size:13px;";d.textContent=r.conceptId+" — "+r.name;
+          d.addEventListener("mouseover",function(){d.style.background="#f5f5f5";});
+          d.addEventListener("mouseout",function(){d.style.background="";});
+          d.addEventListener("mousedown",function(e){
+            e.preventDefault();cur=cur.concat([r._id]);upd(c._id,{related:cur.slice()});
+            sinp.value="";dd.style.display="none";rebuild();
+          });
+          dd.appendChild(d);
+        });
+        var sr=sinp.getBoundingClientRect();
+        dd.style.left=sr.left+"px";dd.style.top=(sr.bottom+2)+"px";dd.style.display="block";
+      }
+      sinp.addEventListener("input",updateDd);
+      sinp.addEventListener("blur",function(){setTimeout(function(){dd.style.display="none";},200);});
+      wrap.appendChild(sinp);
+    }
+    rebuild();
+  }
+
+  textField("Concept ID","conceptId");
+  textField("Public-facing term","pub");
+  textField("Definition","def",true);
+  textField("Legal term","legal");
+  textField("Synonyms & variants","syn",true);
+  selField("Status","status",STATUS_OPTS);
+  msField("Service areas","areas",AREAS);
+  checkField("Public term tested?","tested");
+  textField("Owner","owner");
+  dateField("Date added","dateAdded");
+  dateField("Last reviewed","last");
+  dateField("Next review due","next");
+  selField("Review trigger","reviewTrigger",TRIGGER_OPTS);
+  relField("Related concepts");
+  textField("Deprecated terms","deprecated");
+  textField("Disputes & notes","disputes",true);
+
+  // Delete
+  var delWrap=document.createElement("div");delWrap.className="m-del-btn";
+  var delBtn=document.createElement("button");delBtn.textContent="Delete concept";
+  delBtn.addEventListener("click",function(){
+    if(confirm("Delete \""+( c.name||"this concept" )+"\"? This cannot be undone.")){del(c._id);closeModal();}
+  });
+  delWrap.appendChild(delBtn);body.appendChild(delWrap);
+}
+
+// Events
+document.getElementById("tbody").addEventListener("click",function(e){
+  // Chip relation nav
+  var cr=e.target.closest(".chip-rel");
+  if(cr){openModal(cr.dataset.rel);return;}
+  // Row action buttons
+  var ro=e.target.closest(".r-open");if(ro){openModal(ro.dataset.id);return;}
+  var rd=e.target.closest(".r-del");
+  if(rd){
+    var c2=find(rd.dataset.id);
+    if(c2&&confirm("Delete \""+( c2.name||"this concept" )+"\"?")){del(rd.dataset.id);}
+    return;
+  }
+  var ar=e.target.closest("#add-row-btn");if(ar){addNew();return;}
+
+  var td=e.target.closest("td");if(!td)return;
+  var id=td.dataset.id,field=td.dataset.f;if(!id||!field)return;
+
+  if(field==="name"){openModal(id);return;}
+  if(field==="tested"){var c3=find(id);if(c3){upd(id,{tested:!c3.tested});}return;}
+  if(field==="status"){openSelPop(td,id,"status",STATUS_OPTS);return;}
+  if(field==="reviewTrigger"){openSelPop(td,id,"reviewTrigger",TRIGGER_OPTS);return;}
+  if(field==="areas"){openMsPop(td,id,"areas",AREAS);return;}
+  if(field==="related"){openRelPop(td,id);return;}
+  if(field==="last"||field==="next"||field==="dateAdded"){openDatePop(td,id,field);return;}
+  if(["pub","def","legal","syn","owner","conceptId","deprecated","disputes"].indexOf(field)>=0){
+    openTextPop(td,id,field,field==="def"||field==="syn"||field==="disputes");return;
+  }
+});
+
+// Sort headers
+document.querySelectorAll("th[data-s]").forEach(function(th){
+  th.addEventListener("click",function(){
+    var f=th.dataset.s;
+    if(sfld===f){sdir*=-1;}else{sfld=f;sdir=1;}
+    document.querySelectorAll("th").forEach(function(t){t.classList.remove("sorted");});
+    th.classList.add("sorted");
+    render();
+  });
+});
+
+// Filter/search
+["q","f-status","f-area"].forEach(function(id){
+  document.getElementById(id).addEventListener("input",function(){closePop();render();});
+});
+
+// + New button
+document.getElementById("btn-add").addEventListener("click",addNew);
+
+// Modal close
+document.getElementById("modal-save").addEventListener("click",closeModal);
+document.getElementById("modal-close").addEventListener("click",closeModal);
+document.getElementById("overlay").addEventListener("click",function(e){if(e.target===document.getElementById("overlay"))closeModal();});
+document.getElementById("modal-name").addEventListener("input",function(){this.style.height="auto";this.style.height=this.scrollHeight+"px";});
+document.getElementById("modal-name").addEventListener("blur",function(){
+  if(!openId)return;
+  var v=this.value.trim();var c=find(openId);
+  if(c&&v!==(c.name||"")){upd(openId,{name:v});}
+});
+
+// Close popup on outside click
+document.addEventListener("mousedown",function(e){
+  if(popState&&!pop.contains(e.target)){var t=e.target.closest("td");if(!t||t.dataset.id!==popState.id||t.dataset.f!==popState.field)closePop();}
+});
+
+// ESC to close modal
+document.addEventListener("keydown",function(e){
+  if(e.key==="Escape"){if(openId)closeModal();else if(popState)closePop();}
+});
+
+// --- Export / Import ---
+function exportDb(){
+  var docs=lsLoad();
+  var json=JSON.stringify({exportedAt:new Date().toISOString(),concepts:docs},null,2);
+  var a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob([json],{type:"application/json"}));
+  a.download="concept-register-"+new Date().toISOString().slice(0,10)+".json";
+  a.click();URL.revokeObjectURL(a.href);
+}
+function importDb(file){
+  if(!file)return;
+  var reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      var parsed=JSON.parse(e.target.result);
+      // accept {concepts:{...}} wrapper or a raw {id:{...}} map
+      var docs=parsed.concepts||parsed;
+      if(typeof docs!=="object"||Array.isArray(docs))throw new Error("Unexpected format");
+      if(!confirm("Replace all current data with the imported file? This cannot be undone."))return;
+      lsSave(docs);lsNotify();
+    }catch(err){alert("Import failed: "+err.message);}
+  };
+  reader.readAsText(file);
+}
+
+// --- localStorage DB adapter ---
+var LS_KEY="concept-register-db";
+var snapshotCbs=[];
+
+function lsLoad(){
+  try{var v=localStorage.getItem(LS_KEY);return v?JSON.parse(v):{};}
+  catch(e){return{};}
+}
+function lsSave(docs){
+  try{localStorage.setItem(LS_KEY,JSON.stringify(docs));}catch(e){console.error(e);}
+}
+function lsNotify(){
+  var docs=lsLoad();
+  var snap={docs:Object.keys(docs).map(function(id){return{id:id,data:function(){return docs[id];},_id:id};})};
+  snapshotCbs.forEach(function(cb){try{cb(snap);}catch(e){console.error(e);}});
+}
+
+var localDb={
+  collection:function(){
+    return{
+      doc:function(id){
+        return{
+          set:function(data){
+            var docs=lsLoad();docs[id]=Object.assign({},data);lsSave(docs);lsNotify();
+            return Promise.resolve();
+          },
+          update:function(fields){
+            var docs=lsLoad();
+            if(!docs[id])return Promise.reject(new Error("Doc not found: "+id));
+            docs[id]=Object.assign({},docs[id],fields);lsSave(docs);lsNotify();
+            return Promise.resolve();
+          },
+          delete:function(){
+            var docs=lsLoad();delete docs[id];lsSave(docs);lsNotify();
+            return Promise.resolve();
+          }
+        };
+      },
+      onSnapshot:function(cb,errCb){
+        snapshotCbs.push(cb);
+        // immediate call with current data
+        var docs=lsLoad();
+        var snap={docs:Object.keys(docs).map(function(id){return{id:id,data:function(){return docs[id];},_id:id};})};
+        setTimeout(function(){try{cb(snap);}catch(e){if(errCb)errCb(e);}},0);
+        // cross-tab sync
+        window.addEventListener("storage",function(e){if(e.key===LS_KEY)lsNotify();});
+        return function(){snapshotCbs=snapshotCbs.filter(function(x){return x!==cb;});};
+      }
+    };
+  }
+};
+
+var SEED=[
+  {_id:"342d7907ed93818f9572c29ac28176d9",conceptId:"CON-0001",name:"Main housing duty",pub:"Decision that we must find you a home",def:"The formal decision by a local authority that it has a legal duty to secure settled accommodation for a person found to be homeless eligible in priority need and not intentionally homeless.",legal:"Full housing duty — Housing Act 1996 s.193(2)",syn:"Full duty; s193 duty; main duty; accepted as homeless; owed the main duty",deprecated:"",disputes:"",status:"Contested",areas:["Housing","Adult Social Care","Benefits"],tested:true,owner:"Housing Strategy Manager",dateAdded:"2026-01-10",last:"2026-01-10",next:"2026-07-10",reviewTrigger:"Scheduled",related:["342d7907ed938184a8bef4ce44f518f5","342d7907ed938114806ef22b50a1a94a"]},
+  {_id:"342d7907ed9381349df5dd0fc6f9927f",conceptId:"CON-0002",name:"Homelessness application",pub:"Application for housing help",def:"A formal request made by a person or family to the local authority stating they are homeless or at risk of homelessness within 56 days and need assistance.",legal:"Homelessness application — Homelessness Reduction Act 2017 s.9",syn:"Homeless application; homelessness assessment; housing application; H-App",deprecated:"",disputes:"",status:"Agreed",areas:["Housing","Customer Services"],tested:true,owner:"Housing Options Manager",dateAdded:"2026-01-10",last:"2026-01-10",next:"2027-01-10",reviewTrigger:"Scheduled",related:[]},
+  {_id:"342d7907ed938184a8bef4ce44f518f5",conceptId:"CON-0003",name:"Homelessness assessment",pub:"Assessment of your housing situation",def:"The process by which a local authority formally assesses whether a person meets the legal criteria to be considered homeless including eligibility priority need and intentionality.",legal:"Eligibility assessment — Housing Act 1996 s.184",syn:"Homeless assessment; housing assessment; needs assessment (do not use — too broad)",deprecated:"",disputes:"",status:"Draft",areas:["Housing"],tested:false,owner:"Housing Options Manager",dateAdded:"2026-01-15",last:"2026-01-15",next:"2026-04-15",reviewTrigger:"Scheduled",related:["342d7907ed93818f9572c29ac28176d9","342d7907ed9381739279d594c967e4cf"]},
+  {_id:"342d7907ed93813b8b22ce2cf7a75249",conceptId:"CON-0004",name:"Cross-service referral",pub:"We've shared your information with another team",def:"A referral made by one council service to another when a person presents with needs that cross service boundaries and requires a coordinated response.",legal:"No statutory term — internal process term",syn:"Multi-agency referral; warm transfer; onward referral; internal referral",deprecated:"",disputes:"",status:"Contested",areas:["Housing","Adult Social Care","Children's Services","Benefits"],tested:false,owner:"Head of Integrated Services",dateAdded:"2026-01-15",last:"2026-01-15",next:"2026-04-15",reviewTrigger:"Team request",related:[]},
+  {_id:"342d7907ed9381af9b63c67a8f6613dc",conceptId:"CON-0005",name:"Personalised housing plan",pub:"Your housing plan",def:"A plan agreed between the local authority and a person setting out the steps both parties will take to prevent the person becoming homeless within 56 days.",legal:"Personalised housing plan — Homelessness Reduction Act 2017 s.11",syn:"PHP; housing plan; action plan; prevention plan",deprecated:"",disputes:"",status:"Agreed",areas:["Housing","Adult Social Care"],tested:true,owner:"Housing Options Manager",dateAdded:"2026-01-10",last:"2026-01-10",next:"2027-01-10",reviewTrigger:"Scheduled",related:[]},
+  {_id:"342d7907ed9381739279d594c967e4cf",conceptId:"CON-0006",name:"Care needs assessment",pub:"Assessment of the help you need at home",def:"A formal assessment carried out by an occupational therapist or social worker to determine what aids adaptations or care a person needs to live safely and independently at home.",legal:"Needs assessment — Care Act 2014 s.9",syn:"Social care assessment; OT assessment; community care assessment; care assessment",deprecated:"",disputes:"",status:"Agreed",areas:["Adult Social Care","Housing"],tested:true,owner:"Adult Social Care Operations Manager",dateAdded:"2026-01-10",last:"2026-01-10",next:"2027-01-10",reviewTrigger:"Scheduled",related:["342d7907ed938184a8bef4ce44f518f5"]},
+  {_id:"342d7907ed9381f9bc06ed3c31f20142",conceptId:"CON-0007",name:"Eligible care needs",pub:"Your care needs qualify for council support",def:"The status of a person who has been assessed as needing care and support and whose needs meet the local authority threshold for funded services under the Care Act.",legal:"Eligible needs — Care Act 2014 s.13 and Care and Support (Eligibility Criteria) Regulations 2015",syn:"Eligible needs; meets threshold; above threshold; qualifying needs",deprecated:"",disputes:"",status:"Draft",areas:["Adult Social Care"],tested:false,owner:"Adult Social Care Strategy Manager",dateAdded:"2026-02-01",last:"2026-02-01",next:"2026-05-01",reviewTrigger:"Scheduled",related:[]},
+  {_id:"342d7907ed938114806ef22b50a1a94a",conceptId:"CON-0008",name:"Care and support plan",pub:"Your care plan",def:"A formal written decision by the local authority setting out what care and support it will arrange or fund for a person with eligible needs including the personal budget allocated.",legal:"Care and support plan — Care Act 2014 s.25",syn:"Support plan; care plan; personal support plan; CS plan",deprecated:"",disputes:"",status:"Agreed",areas:["Adult Social Care","Finance"],tested:true,owner:"Adult Social Care Operations Manager",dateAdded:"2026-01-10",last:"2026-01-10",next:"2027-01-10",reviewTrigger:"Scheduled",related:["342d7907ed93818f9572c29ac28176d9","342d7907ed9381ae891ae78d0ccd4023"]},
+  {_id:"342d7907ed9381d0ad1afa73cadb0f8a",conceptId:"CON-0009",name:"Personal budget",pub:"Money allocated for your care",def:"The assessed cost of meeting a person's eligible care needs used to calculate the personal budget. Represents what the local authority estimates it would cost to meet those needs.",legal:"Personal budget — Care Act 2014 s.26",syn:"Direct payment budget; care budget; allocated budget",deprecated:"",disputes:"",status:"Agreed",areas:["Adult Social Care","Finance"],tested:true,owner:"Finance Business Partner — Adult Social Care",dateAdded:"2026-01-10",last:"2026-01-10",next:"2027-01-10",reviewTrigger:"Scheduled",related:[]},
+  {_id:"342d7907ed93818fad74c2e45aba60f2",conceptId:"CON-0010",name:"Care review",pub:"Review of your care plan",def:"A formal review of a person's care and support plan carried out by the local authority at least annually or when the person's needs change significantly.",legal:"Review — Care Act 2014 s.27",syn:"Annual review; support plan review; care plan review; scheduled review",deprecated:"",disputes:"",status:"Contested",areas:["Adult Social Care"],tested:false,owner:"Adult Social Care Operations Manager",dateAdded:"2026-02-01",last:"2026-02-01",next:"2026-05-01",reviewTrigger:"Scheduled",related:[]},
+  {_id:"342d7907ed9381eda597d3e6d2d88fd3",conceptId:"CON-0011",name:"Financial assessment",pub:"Check of what you can afford to pay towards your care",def:"An assessment of a person's financial circumstances used to determine how much they are required to contribute towards the cost of their care and support services.",legal:"Financial assessment — Care Act 2014 s.17",syn:"Means test; financial means assessment; FA; income assessment",deprecated:"",disputes:"",status:"Agreed",areas:["Adult Social Care","Finance"],tested:true,owner:"Finance Business Partner — Adult Social Care",dateAdded:"2026-01-10",last:"2026-01-10",next:"2027-01-10",reviewTrigger:"Scheduled",related:[]},
+  {_id:"342d7907ed9381428891cefa9aca1d13",conceptId:"CON-0012",name:"Carer",pub:"Someone who looks after a family member or friend without being paid",def:"A person who provides unpaid care and support to a family member or friend who due to illness disability or age could not manage without that support.",legal:"No single statutory definition — see Care Act 2014 s.10 for assessment rights and Children Act 1989 for young carers",syn:"Informal carer; family carer; unpaid carer; carer (do not confuse with paid care worker)",deprecated:"",disputes:"",status:"Agreed",areas:["Adult Social Care","Children's Services","Housing","Benefits"],tested:true,owner:"Carers Lead",dateAdded:"2026-01-10",last:"2026-01-10",next:"2027-01-10",reviewTrigger:"Scheduled",related:[]},
+  {_id:"342d7907ed9381bb8d2ffe2c1b3a7620",conceptId:"CON-0013",name:"Carer's assessment",pub:"Assessment of the support you need as a carer",def:"A formal assessment of the needs of a person who provides unpaid care to determine whether the carer has needs of their own and what support the local authority will offer.",legal:"Carer's assessment — Care Act 2014 s.10",syn:"Carers assessment; carer support assessment; carer needs assessment",deprecated:"",disputes:"",status:"Agreed",areas:["Adult Social Care","Children's Services"],tested:true,owner:"Carers Lead",dateAdded:"2026-01-10",last:"2026-01-10",next:"2027-01-10",reviewTrigger:"Scheduled",related:[]},
+  {_id:"342d7907ed9381d99621eefd2735cb4a",conceptId:"CON-0014",name:"Child protection plan",pub:"A plan to keep your child safe",def:"A decision by the local authority that a child needs to be kept safe from harm and that a formal child protection plan should be put in place to manage identified risks.",legal:"Child protection plan — Children Act 1989 s.47 and Working Together to Safeguard Children 2023",syn:"CP plan; child in need plan (do not confuse — different legal basis); safeguarding plan",deprecated:"",disputes:"",status:"Agreed",areas:["Children's Services","Housing","Adult Social Care","Schools"],tested:true,owner:"Head of Safeguarding",dateAdded:"2026-01-10",last:"2026-01-10",next:"2027-01-10",reviewTrigger:"Scheduled",related:[]},
+  {_id:"342d7907ed9381ae891ae78d0ccd4023",conceptId:"CON-0015",name:"Child in need plan",pub:"Plan to support your child and family",def:"A plan for a child whose health or development is being impaired or is likely to be impaired without the provision of services but who does not meet the threshold for child protection.",legal:"Child in need plan — Children Act 1989 s.17",syn:"CIN plan; family support plan; s17 plan; child and family plan",deprecated:"",disputes:"",status:"Agreed",areas:["Children's Services","Housing","Adult Social Care"],tested:true,owner:"Head of Children in Need",dateAdded:"2026-01-10",last:"2026-01-10",next:"2027-01-10",reviewTrigger:"Scheduled",related:["342d7907ed938114806ef22b50a1a94a"]}
+];
+
+document.getElementById("btn-export").addEventListener("click",exportDb);
+document.getElementById("btn-import").addEventListener("change",function(){importDb(this.files[0]);this.value="";});
+
+// --- Init ---
+(function(){
+  db=localDb;
+  // Seed on first load
+  if(!localStorage.getItem(LS_KEY)){
+    var docs={};
+    SEED.forEach(function(c){var id=c._id;var d=Object.assign({},c);delete d._id;docs[id]=d;});
+    lsSave(docs);
+  }
+  db.collection("concepts").onSnapshot(function(snap){
+    all=snap.docs.map(function(d){return Object.assign({},d.data(),{_id:d.id});});
+    document.getElementById("loading").style.display="none";
+    document.getElementById("tbl").style.display="";
+    render();
+    if(openId){var c=find(openId);if(c){buildModalBody(c);}}
+  });
+})();
+
+})();
+</script>
+</body>
+</html>
