@@ -157,6 +157,12 @@
         <div class="hint">Drag to pan · scroll or pinch to zoom · tap a concept for details</div>
       </div>
       <div class="altcard" id="view-alt" hidden></div>
+      <div class="mapcard" id="view-sunburst" hidden>
+        <div class="hint">Click a segment for details</div>
+      </div>
+      <div class="mapcard" id="view-network" hidden>
+        <div class="hint">Drag nodes · scroll to zoom · click for details</div>
+      </div>
     </div>
     <div class="right-col">
       <aside class="panel" id="detail" aria-live="polite"></aside>
@@ -177,6 +183,13 @@
             <button type="button" class="pill-btn" id="b-links" aria-pressed="true">Related links</button>
           </div>
         </div>
+        <div>
+          <span class="view-label">Display as</span>
+          <div class="pill-row" role="group" aria-label="Display as" style="margin-top:6px">
+            <button type="button" class="pill-btn" id="d-sunburst" aria-pressed="false">Sunburst</button>
+            <button type="button" class="pill-btn" id="d-network" aria-pressed="false">Network</button>
+          </div>
+        </div>
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           <button type="button" class="btn" id="b-refresh">Check for updates</button>
           <span class="live" id="live" role="status">Loading…</span>
@@ -188,6 +201,7 @@
   <noscript><p class="muted">This page needs JavaScript to draw the map.</p></noscript>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
 <script>
 (function () {
   "use strict";
@@ -207,6 +221,7 @@
   var groupBy = "area", showLinks = true, hidden = {};
   var selected = null, hover = null;
   var viewMode = "map", tableSortCol = "id", tableSortDir = 1;
+  var displayMode = "", networkSim = null;
   var view = { k: 1, x: 0, y: 0 }, ext = 520;
   var leafEls = [], linkEls = [], posByKey = {};
 
@@ -361,10 +376,17 @@
   function render() {
     renderSummary();
     renderLegend();
-    var isMap = viewMode === "map";
+    var isSunburst = displayMode === "sunburst";
+    var isNetwork = displayMode === "network";
+    var isMap = !displayMode && viewMode === "map";
+    if (!isNetwork && networkSim) { networkSim.stop(); networkSim = null; }
     $("view-map").hidden = !isMap;
-    $("view-alt").hidden = isMap;
-    if (isMap) { drawMap(); renderDetail(); applyFocus(); }
+    $("view-alt").hidden = !(!displayMode && viewMode !== "map");
+    $("view-sunburst").hidden = !isSunburst;
+    $("view-network").hidden = !isNetwork;
+    if (isSunburst) { drawSunburst(); renderDetail(); }
+    else if (isNetwork) { drawNetwork(); renderDetail(); }
+    else if (isMap) { drawMap(); renderDetail(); applyFocus(); }
     else { if (viewMode === "list") { drawList(); } else { drawTable(); } renderDetail(); }
   }
 
@@ -657,6 +679,160 @@
     });
   }
 
+  function drawSunburst() {
+    var box = $("view-sunburst");
+    var prev = box.querySelector("svg,p.empty");
+    while (prev) { box.removeChild(prev); prev = box.querySelector("svg,p.empty"); }
+    var vis = concepts.filter(function (c) { return !hidden[c.skey]; });
+    if (!vis.length) {
+      var ep = document.createElement("p"); ep.className = "empty";
+      ep.textContent = loaded ? "No concepts to show." : "Loading the register…";
+      var hintEl = box.querySelector(".hint");
+      if (hintEl) { box.insertBefore(ep, hintEl); } else { box.appendChild(ep); }
+      return;
+    }
+    var areaMap = new Map();
+    vis.forEach(function (c) {
+      c.areas.forEach(function (a) {
+        if (!areaMap.has(a)) { areaMap.set(a, []); }
+        areaMap.get(a).push({ name: c.name, value: 1, ckey: c.key, skey: c.skey });
+      });
+    });
+    var rootData = {
+      name: "root",
+      children: Array.from(areaMap, function (p) {
+        return { name: p[0], children: p[1] };
+      }).sort(function (a, b) { return a.name.localeCompare(b.name, "en"); })
+    };
+    var cs = getComputedStyle(document.documentElement);
+    var cv = function (n) { return cs.getPropertyValue(n).trim(); };
+    var colMap = { agreed: cv("--agreed"), contested: cv("--contested"), draft: cv("--draft"), deprecated: cv("--deprecated"), other: cv("--other") };
+    var W = box.clientWidth || 500, R = Math.min(W * 0.47, 240), vb = R + 6;
+    var svgEl = d3.create("svg")
+      .attr("width", "100%").attr("viewBox", [-vb, -vb, 2 * vb, 2 * vb])
+      .style("aspect-ratio", "1/1").style("max-height", "82vh").style("display", "block");
+    var hier = d3.hierarchy(rootData).sum(function (d) { return d.value || 0; });
+    d3.partition().size([2 * Math.PI, R])(hier);
+    var arc = d3.arc()
+      .startAngle(function (d) { return d.x0; }).endAngle(function (d) { return d.x1; })
+      .padAngle(0.004).padRadius(R / 2)
+      .innerRadius(function (d) { return d.y0; }).outerRadius(function (d) { return d.y1 - 1; });
+    var g = svgEl.append("g");
+    g.selectAll("path")
+      .data(hier.descendants().filter(function (d) { return d.depth; }))
+      .join("path")
+      .attr("fill", function (d) { return d.depth === 1 ? cv("--surface2") : (colMap[d.data.skey] || colMap.other); })
+      .attr("fill-opacity", function (d) { return d.depth === 1 ? 0.95 : 0.78; })
+      .attr("stroke", cv("--surface")).attr("stroke-width", 0.8).attr("d", arc)
+      .style("cursor", function (d) { return d.depth === 2 ? "pointer" : "default"; })
+      .on("click", function (event, d) { if (d.depth === 2) { choose(d.data.ckey); } })
+      .append("title").text(function (d) {
+        return d.depth === 1 ? d.data.name + " (" + d.children.length + ")" : d.data.name;
+      });
+    g.selectAll("text.sbl")
+      .data(hier.descendants().filter(function (d) { return d.depth === 1 && (d.x1 - d.x0) > 0.18; }))
+      .join("text").attr("class", "sbl")
+      .attr("transform", function (d) {
+        var mid = (d.x0 + d.x1) / 2, angle = mid * 180 / Math.PI - 90, r = (d.y0 + d.y1) / 2;
+        return "rotate(" + angle + ") translate(" + r + ",0)" + (mid > Math.PI ? " rotate(180)" : "");
+      })
+      .attr("dy", "0.35em")
+      .attr("text-anchor", function (d) { return (d.x0 + d.x1) / 2 > Math.PI ? "end" : "start"; })
+      .attr("fill", cv("--text")).attr("font-size", 10).attr("pointer-events", "none")
+      .text(function (d) {
+        var n = d.data.name, arcLen = (d.x1 - d.x0) * (d.y0 + d.y1) / 2;
+        var maxCh = Math.max(4, Math.floor(arcLen / 7));
+        return n.length > maxCh ? n.slice(0, maxCh - 1) + "…" : n;
+      });
+    g.append("text").attr("text-anchor", "middle").attr("dy", "-0.2em")
+      .attr("fill", cv("--muted")).attr("font-size", 11).attr("font-weight", 600)
+      .attr("pointer-events", "none").text("Concept");
+    g.append("text").attr("text-anchor", "middle").attr("dy", "1em")
+      .attr("fill", cv("--muted")).attr("font-size", 11)
+      .attr("pointer-events", "none").text("Register");
+    var hintEl2 = box.querySelector(".hint");
+    if (hintEl2) { box.insertBefore(svgEl.node(), hintEl2); } else { box.appendChild(svgEl.node()); }
+  }
+
+  function drawNetwork() {
+    var box = $("view-network");
+    var prev = box.querySelector("svg,p.empty");
+    while (prev) { box.removeChild(prev); prev = box.querySelector("svg,p.empty"); }
+    if (networkSim) { networkSim.stop(); networkSim = null; }
+    var vis = concepts.filter(function (c) { return !hidden[c.skey]; });
+    if (!vis.length) {
+      var ep = document.createElement("p"); ep.className = "empty";
+      ep.textContent = loaded ? "No concepts to show." : "Loading the register…";
+      var hintEl = box.querySelector(".hint");
+      if (hintEl) { box.insertBefore(ep, hintEl); } else { box.appendChild(ep); }
+      return;
+    }
+    var cs = getComputedStyle(document.documentElement);
+    var cv = function (n) { return cs.getPropertyValue(n).trim(); };
+    var colMap = { agreed: cv("--agreed"), contested: cv("--contested"), draft: cv("--draft"), deprecated: cv("--deprecated"), other: cv("--other") };
+    var W = box.clientWidth || 600, H = Math.max(380, Math.round(W * 0.85));
+    var visSet = new Set(vis.map(function (c) { return c.key; }));
+    var nodes = vis.map(function (c) { return { id: c.key, name: c.name, skey: c.skey }; });
+    var linkSet = {}, links = [];
+    vis.forEach(function (c) {
+      c.rel.forEach(function (r) {
+        if (!visSet.has(r)) { return; }
+        var pid = [c.key, r].sort().join("|");
+        if (linkSet[pid]) { return; }
+        linkSet[pid] = true;
+        links.push({ source: c.key, target: r });
+      });
+    });
+    var svgEl = d3.create("svg")
+      .attr("width", "100%").attr("viewBox", [0, 0, W, H])
+      .style("max-height", "82vh").style("display", "block");
+    var gWrap = svgEl.append("g");
+    svgEl.call(d3.zoom().scaleExtent([0.2, 6]).on("zoom", function (event) {
+      gWrap.attr("transform", event.transform);
+    }));
+    var linkEl = gWrap.append("g")
+      .selectAll("line").data(links).join("line")
+      .attr("stroke", cv("--line")).attr("stroke-opacity", 0.55).attr("stroke-width", 1.4);
+    var nodeEl = gWrap.append("g")
+      .selectAll("g").data(nodes).join("g").style("cursor", "pointer")
+      .call(d3.drag()
+        .on("start", function (event, d) {
+          if (!event.active) { networkSim.alphaTarget(0.3).restart(); }
+          d.fx = d.x; d.fy = d.y;
+        })
+        .on("drag", function (event, d) { d.fx = event.x; d.fy = event.y; })
+        .on("end", function (event, d) {
+          if (!event.active) { networkSim.alphaTarget(0); }
+          d.fx = null; d.fy = null;
+        })
+      )
+      .on("click", function (event, d) { event.stopPropagation(); choose(d.id); });
+    nodeEl.append("circle")
+      .attr("r", 7)
+      .attr("fill", function (d) { return colMap[d.skey] || colMap.other; })
+      .attr("stroke", cv("--surface")).attr("stroke-width", 1.8).attr("fill-opacity", 0.85);
+    nodeEl.append("text")
+      .attr("x", 10).attr("dy", "0.35em")
+      .attr("fill", cv("--text")).attr("font-size", 11).attr("pointer-events", "none")
+      .text(function (d) { return d.name.length > 22 ? d.name.slice(0, 21) + "…" : d.name; });
+    nodeEl.append("title").text(function (d) { return d.name; });
+    networkSim = d3.forceSimulation(nodes)
+      .force("link", d3.forceLink(links).id(function (d) { return d.id; }).distance(80))
+      .force("charge", d3.forceManyBody().strength(-180))
+      .force("center", d3.forceCenter(W / 2, H / 2))
+      .force("collision", d3.forceCollide(18))
+      .on("tick", function () {
+        linkEl
+          .attr("x1", function (d) { return d.source.x; })
+          .attr("y1", function (d) { return d.source.y; })
+          .attr("x2", function (d) { return d.target.x; })
+          .attr("y2", function (d) { return d.target.y; });
+        nodeEl.attr("transform", function (d) { return "translate(" + d.x + "," + d.y + ")"; });
+      });
+    var hintEl2 = box.querySelector(".hint");
+    if (hintEl2) { box.insertBefore(svgEl.node(), hintEl2); } else { box.appendChild(svgEl.node()); }
+  }
+
   function setView(v) {
     viewMode = v;
     ["map", "list", "table"].forEach(function (k) { $("v-" + k).setAttribute("aria-pressed", k === v ? "true" : "false"); });
@@ -760,6 +936,14 @@
   $("v-map").addEventListener("click", function () { setView("map"); });
   $("v-list").addEventListener("click", function () { setView("list"); });
   $("v-table").addEventListener("click", function () { setView("table"); });
+  function setDisplay(d) {
+    displayMode = displayMode === d ? "" : d;
+    $("d-sunburst").setAttribute("aria-pressed", displayMode === "sunburst" ? "true" : "false");
+    $("d-network").setAttribute("aria-pressed", displayMode === "network" ? "true" : "false");
+    render();
+  }
+  $("d-sunburst").addEventListener("click", function () { setDisplay("sunburst"); });
+  $("d-network").addEventListener("click", function () { setDisplay("network"); });
 
   /* ---------- start ---------- */
   render();
