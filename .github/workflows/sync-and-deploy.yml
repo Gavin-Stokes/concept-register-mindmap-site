@@ -1,11 +1,9 @@
-name: Copy register from Notion and deploy
+name: Deploy to GitHub Pages
 
 on:
-  schedule:
-    - cron: "*/15 * * * *"   # every 15 minutes; change to "0 * * * *" for hourly
-  workflow_dispatch:         # lets you run it by hand from the Actions tab
   push:
     branches: [main]
+  workflow_dispatch:   # lets you run it by hand from the Actions tab
 
 permissions:
   contents: read
@@ -24,17 +22,6 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Copy the register from Notion
-        run: node scripts/sync.mjs
-        env:
-          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
-          # Optional settings. Uncomment to publish only agreed concepts:
-          # PUBLISH_STATUSES: "Agreed"
 
       - uses: actions/configure-pages@v5
 
