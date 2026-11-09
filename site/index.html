@@ -13,6 +13,7 @@
     --border:#e3e0d8; --line:#c9c5ba; --link:#c0392b; --accent:#2f6fed;
     --agreed:#0d8050; --contested:#b36a00; --draft:#2f6fed; --deprecated:#77746d; --other:#77746d;
     --warn:#c0392b;
+    --pill-active-bg:#d4f0dc; --pill-active-fg:#0a4f1e; --pill-active-bd:#9fcca9;
     box-sizing: border-box;
     padding-top: env(safe-area-inset-top, 0px);
     padding-bottom: env(safe-area-inset-bottom, 0px);
@@ -23,6 +24,7 @@
       --border:#34322a; --line:#4a473d; --link:#e05c4a; --accent:#7ba5ff;
       --agreed:#3fbf86; --contested:#e0a040; --draft:#7ba5ff; --deprecated:#9a978f; --other:#9a978f;
       --warn:#ff8a7a;
+      --pill-active-bg:#1a3d22; --pill-active-fg:#5ec970; --pill-active-bd:#2d6b3a;
     }
   }
   :root[data-theme="dark"] {
@@ -30,6 +32,7 @@
     --border:#34322a; --line:#4a473d; --link:#e05c4a; --accent:#7ba5ff;
     --agreed:#3fbf86; --contested:#e0a040; --draft:#7ba5ff; --deprecated:#9a978f; --other:#9a978f;
     --warn:#ff8a7a;
+    --pill-active-bg:#1a3d22; --pill-active-fg:#5ec970; --pill-active-bd:#2d6b3a;
   }
   html { scroll-padding-top: env(safe-area-inset-top, 0px); }
   *, *::before, *::after { box-sizing: border-box; }
@@ -49,7 +52,13 @@
   .btn:disabled { opacity:.55; cursor:default; }
   button:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
   .live { color:var(--muted); font-size:12.5px; }
-  .right-controls { display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding-top:10px; border-top:1px solid var(--border); }
+  .right-controls { display:flex; flex-direction:column; align-items:flex-start; gap:10px; padding-top:10px; border-top:1px solid var(--border); }
+  .pill-row { display:flex; flex-wrap:wrap; gap:6px; }
+  .pill-btn { border:1px solid var(--border); background:var(--surface); color:var(--text);
+    border-radius:999px; padding:6px 14px; font:inherit; font-size:13px; cursor:pointer; }
+  .pill-btn[aria-pressed="true"] { background:var(--pill-active-bg); color:var(--pill-active-fg);
+    border-color:var(--pill-active-bd); font-weight:600; }
+  .pill-btn:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
   .summary { font-size:13.5px; color:var(--muted); margin:0 0 10px; }
   .legend { display:flex; flex-wrap:wrap; gap:6px; margin:0 0 12px; }
   .chip { display:inline-flex; align-items:center; gap:7px; border:1px solid var(--border); background:var(--surface);
@@ -90,8 +99,8 @@
   .note a { color:var(--muted); }
   .right-col { display:flex; flex-direction:column; gap:10px; }
   .altcard { background:var(--surface); border:1px solid var(--border); border-radius:12px; overflow:hidden; }
-  .view-switch { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
-  .view-label { margin:0; font-size:13px; color:var(--muted); }
+  .view-switch { display:flex; flex-direction:column; align-items:flex-start; gap:6px; }
+  .view-label { margin:0; font-size:13px; font-weight:700; color:var(--text); }
   .list-wrap { max-height:82vh; overflow-y:auto; }
   .list-group-head { font-size:11.5px; letter-spacing:.05em; text-transform:uppercase; color:var(--muted); padding:10px 16px 4px; }
   .list-row { display:block; width:100%; text-align:left; background:none; border:0; border-bottom:1px solid var(--border); padding:10px 16px; cursor:pointer; color:var(--text); font:inherit; }
@@ -151,23 +160,27 @@
     </div>
     <div class="right-col">
       <aside class="panel" id="detail" aria-live="polite"></aside>
-      <div class="view-switch" role="group" aria-label="Display as">
+      <div class="view-switch">
         <span class="view-label">View as</span>
-        <div class="seg">
-          <button type="button" id="v-map" aria-pressed="true">Mind map</button>
-          <button type="button" id="v-list" aria-pressed="false">List</button>
-          <button type="button" id="v-table" aria-pressed="false">Table</button>
+        <div class="pill-row" role="group" aria-label="Display as">
+          <button type="button" class="pill-btn" id="v-map" aria-pressed="true">Mind map</button>
+          <button type="button" class="pill-btn" id="v-list" aria-pressed="false">List</button>
+          <button type="button" class="pill-btn" id="v-table" aria-pressed="false">Table</button>
         </div>
       </div>
       <div class="right-controls">
-        <span class="view-label">Group by</span>
-        <div class="seg" role="group" aria-label="Group concepts by">
-          <button type="button" id="g-area" aria-pressed="true">Service area</button>
-          <button type="button" id="g-status" aria-pressed="false">Status</button>
+        <div>
+          <span class="view-label">Group by</span>
+          <div class="pill-row" role="group" aria-label="Group concepts by" style="margin-top:6px">
+            <button type="button" class="pill-btn" id="g-area" aria-pressed="true">Service area</button>
+            <button type="button" class="pill-btn" id="g-status" aria-pressed="false">Status</button>
+            <button type="button" class="pill-btn" id="b-links" aria-pressed="true">Related links</button>
+          </div>
         </div>
-        <button type="button" class="btn" id="b-links" aria-pressed="true">Related links</button>
-        <button type="button" class="btn" id="b-refresh">Check for updates</button>
-        <span class="live" id="live" role="status">Loading…</span>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <button type="button" class="btn" id="b-refresh">Check for updates</button>
+          <span class="live" id="live" role="status">Loading…</span>
+        </div>
       </div>
       <p class="note">Source: the <a href="https://app.notion.com/p/342d7907ed9380b886b2c57e3132b39b" target="_blank" rel="noopener noreferrer">Concept Register</a> in Notion. The data on this page is copied from it automatically about every 15 minutes, so a change can take that long to appear.</p>
     </div>
