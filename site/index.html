@@ -181,6 +181,7 @@
 
   var DATA_URL = "data.json";
   var POLL_MS = 60000;
+  var LS_KEY = "concept-register-db";
   var NS = "http://www.w3.org/2000/svg";
   var STATUS_ORDER = ["Agreed", "Contested", "Draft", "Deprecated"];
   var MAXLABEL = 26;
@@ -300,6 +301,22 @@
     return generatedAt ? "Register copied " + fstamp(generatedAt) : "Loaded";
   }
 
+  function loadFromLocalStorage() {
+    try {
+      var raw = localStorage.getItem(LS_KEY);
+      if (!raw) { return false; }
+      var docs = JSON.parse(raw);
+      var arr = Object.keys(docs).map(function (id) {
+        return Object.assign({}, docs[id], { id: id });
+      });
+      if (!arr.length) { return false; }
+      ingest({ generatedAt: new Date().toISOString(), concepts: arr });
+      setLive("Local database");
+      hideNotice();
+      return true;
+    } catch (e) { return false; }
+  }
+
   function load(manual) {
     if (busy) { return Promise.resolve(false); }
     busy = true; $("b-refresh").disabled = true;
@@ -314,6 +331,7 @@
         return true;
       })
       .catch(function () {
+        if (loadFromLocalStorage()) { return false; }
         if (loaded) {
           showNotice("Couldn’t check for updates just now. Showing the data from " + fstamp(generatedAt || Date.now()) + "; the page will try again by itself.", null);
           setLive(liveText());
@@ -732,10 +750,12 @@
 
   /* ---------- start ---------- */
   render();
+  loadFromLocalStorage();
   load(false).then(function () {
     setInterval(function () { if (document.visibilityState === "visible") { load(false); } }, POLL_MS);
     document.addEventListener("visibilitychange", function () { if (document.visibilityState === "visible") { load(false); } });
   });
+  window.addEventListener("storage", function (e) { if (e.key === LS_KEY) { loadFromLocalStorage(); } });
 })();
 </script>
 </body>
