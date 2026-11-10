@@ -122,10 +122,31 @@ td.overdue .d-val{color:#b32020;font-weight:500}
 
 /* Loading/error */
 #loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#999;font-size:14px;flex-direction:column;gap:12px}
+
+/* Password gate */
+#gate{position:fixed;inset:0;background:#f5f5f5;display:flex;align-items:center;justify-content:center;z-index:9999}
+#gate-box{background:#fff;border:1px solid #e5e5e5;border-radius:12px;padding:36px 32px;width:320px;box-shadow:0 4px 24px rgba(0,0,0,.08)}
+#gate-box h2{font-size:16px;font-weight:600;margin-bottom:4px}
+#gate-box p{font-size:13px;color:#999;margin-bottom:20px}
+#gate-pw{width:100%;border:1px solid #ddd;border-radius:6px;padding:8px 12px;font:inherit;font-size:14px;outline:none;margin-bottom:12px;box-sizing:border-box}
+#gate-pw:focus{border-color:#0052cc}
+#gate-pw.error{border-color:#c0392b}
+#gate-err{font-size:12.5px;color:#c0392b;margin-bottom:12px;display:none}
+#gate-submit{width:100%;background:#0052cc;color:#fff;border:none;border-radius:6px;padding:9px;font:inherit;font-size:14px;font-weight:500;cursor:pointer}
+#gate-submit:hover{background:#0041a3}
 </style>
 </head>
 <body>
-<div id="app">
+<div id="gate" aria-modal="true" role="dialog" aria-labelledby="gate-title">
+  <div id="gate-box">
+    <h2 id="gate-title">Concept Register DB</h2>
+    <p>Enter the password to access the editor.</p>
+    <input type="password" id="gate-pw" placeholder="Password" autocomplete="current-password">
+    <div id="gate-err">Incorrect password — try again.</div>
+    <button type="button" id="gate-submit">Unlock</button>
+  </div>
+</div>
+<div id="app" hidden>
   <div id="toolbar">
     <span class="db-icon">🗂</span>
     <span class="db-title">Concept Register</span>
@@ -195,6 +216,49 @@ td.overdue .d-val{color:#b32020;font-weight:500}
 </div>
 
 <script>
+/* ---------- password gate ---------- */
+(function(){
+  var HASH = "b0c628c23370c43b5dca81e635e0b003d9d6795c628728f527c1c9b4e758f240";
+  var SESSION_KEY = "crdb_auth";
+
+  function unlock() {
+    document.getElementById("gate").hidden = true;
+    document.getElementById("app").hidden = false;
+    document.getElementById("gate-pw").value = "";
+  }
+
+  function tryAuth(pw) {
+    var enc = new TextEncoder().encode(pw);
+    crypto.subtle.digest("SHA-256", enc).then(function(buf) {
+      var hex = Array.from(new Uint8Array(buf)).map(function(b){ return b.toString(16).padStart(2,"0"); }).join("");
+      if (hex === HASH) {
+        try { sessionStorage.setItem(SESSION_KEY, "1"); } catch(e) {}
+        unlock();
+      } else {
+        var pw_el = document.getElementById("gate-pw");
+        var err_el = document.getElementById("gate-err");
+        pw_el.classList.add("error");
+        err_el.style.display = "block";
+        pw_el.focus();
+      }
+    });
+  }
+
+  try { if (sessionStorage.getItem(SESSION_KEY) === "1") { unlock(); return; } } catch(e) {}
+
+  document.getElementById("gate-pw").addEventListener("input", function() {
+    this.classList.remove("error");
+    document.getElementById("gate-err").style.display = "none";
+  });
+  document.getElementById("gate-pw").addEventListener("keydown", function(e) {
+    if (e.key === "Enter") { tryAuth(this.value); }
+  });
+  document.getElementById("gate-submit").addEventListener("click", function() {
+    tryAuth(document.getElementById("gate-pw").value);
+  });
+  document.getElementById("gate-pw").focus();
+}());
+
 (function(){
 "use strict";
 
