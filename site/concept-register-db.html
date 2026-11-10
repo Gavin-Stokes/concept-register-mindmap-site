@@ -146,7 +146,7 @@ td.overdue .d-val{color:#b32020;font-weight:500}
     <button type="button" id="gate-submit">Unlock</button>
   </div>
 </div>
-<div id="app" hidden>
+<div id="app" style="display:none">
   <div id="toolbar">
     <span class="db-icon">🗂</span>
     <span class="db-title">Concept Register</span>
@@ -218,30 +218,26 @@ td.overdue .d-val{color:#b32020;font-weight:500}
 <script>
 /* ---------- password gate ---------- */
 (function(){
-  var HASH = "b0c628c23370c43b5dca81e635e0b003d9d6795c628728f527c1c9b4e758f240";
+  var STORED = "RFAzUjI2";
   var SESSION_KEY = "crdb_auth";
 
   function unlock() {
-    document.getElementById("gate").hidden = true;
-    document.getElementById("app").hidden = false;
+    document.getElementById("gate").style.display = "none";
+    document.getElementById("app").style.display = "flex";
     document.getElementById("gate-pw").value = "";
   }
 
   function tryAuth(pw) {
-    var enc = new TextEncoder().encode(pw);
-    crypto.subtle.digest("SHA-256", enc).then(function(buf) {
-      var hex = Array.from(new Uint8Array(buf)).map(function(b){ return b.toString(16).padStart(2,"0"); }).join("");
-      if (hex === HASH) {
-        try { sessionStorage.setItem(SESSION_KEY, "1"); } catch(e) {}
-        unlock();
-      } else {
-        var pw_el = document.getElementById("gate-pw");
-        var err_el = document.getElementById("gate-err");
-        pw_el.classList.add("error");
-        err_el.style.display = "block";
-        pw_el.focus();
-      }
-    });
+    var ok = false;
+    try { ok = (btoa(pw) === STORED); } catch(e) {}
+    if (ok) {
+      try { sessionStorage.setItem(SESSION_KEY, "1"); } catch(e) {}
+      unlock();
+    } else {
+      document.getElementById("gate-pw").classList.add("error");
+      document.getElementById("gate-err").style.display = "block";
+      document.getElementById("gate-pw").focus();
+    }
   }
 
   try { if (sessionStorage.getItem(SESSION_KEY) === "1") { unlock(); return; } } catch(e) {}
