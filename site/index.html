@@ -169,6 +169,7 @@
           <button type="button" class="pill-btn" id="v-map" aria-pressed="true">Mind map</button>
           <button type="button" class="pill-btn" id="v-list" aria-pressed="false">List</button>
           <button type="button" class="pill-btn" id="v-table" aria-pressed="false">Table</button>
+          <button type="button" class="pill-btn" id="v-network" aria-pressed="false">Network</button>
         </div>
       </div>
       <div class="right-controls">
@@ -178,12 +179,6 @@
             <button type="button" class="pill-btn" id="g-area" aria-pressed="true">Service area</button>
             <button type="button" class="pill-btn" id="g-status" aria-pressed="false">Status</button>
             <button type="button" class="pill-btn" id="b-links" aria-pressed="true">Related links</button>
-          </div>
-        </div>
-        <div>
-          <span class="view-label">Display as</span>
-          <div class="pill-row" role="group" aria-label="Display as" style="margin-top:6px">
-            <button type="button" class="pill-btn" id="d-network" aria-pressed="false">Network</button>
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
@@ -218,7 +213,7 @@
   var groupBy = "area", showLinks = true, hidden = {};
   var selected = null, hover = null;
   var viewMode = "map", tableSortCol = "id", tableSortDir = 1;
-  var displayMode = "", networkSim = null;
+  var networkSim = null;
   var view = { k: 1, x: 0, y: 0 }, ext = 520;
   var leafEls = [], linkEls = [], posByKey = {};
 
@@ -373,11 +368,11 @@
   function render() {
     renderSummary();
     renderLegend();
-    var isNetwork = displayMode === "network";
-    var isMap = !displayMode && viewMode === "map";
+    var isNetwork = viewMode === "network";
+    var isMap = viewMode === "map";
     if (!isNetwork && networkSim) { networkSim.stop(); networkSim = null; }
     $("view-map").hidden = !isMap;
-    $("view-alt").hidden = !(!displayMode && viewMode !== "map");
+    $("view-alt").hidden = isMap || isNetwork;
     $("view-network").hidden = !isNetwork;
     if (isNetwork) { drawNetwork(); renderDetail(); }
     else if (isMap) { drawMap(); renderDetail(); applyFocus(); }
@@ -754,7 +749,7 @@
 
   function setView(v) {
     viewMode = v;
-    ["map", "list", "table"].forEach(function (k) { $("v-" + k).setAttribute("aria-pressed", k === v ? "true" : "false"); });
+    ["map", "list", "table", "network"].forEach(function (k) { $("v-" + k).setAttribute("aria-pressed", k === v ? "true" : "false"); });
     render();
   }
 
@@ -855,12 +850,7 @@
   $("v-map").addEventListener("click", function () { setView("map"); });
   $("v-list").addEventListener("click", function () { setView("list"); });
   $("v-table").addEventListener("click", function () { setView("table"); });
-  function setDisplay(d) {
-    displayMode = displayMode === d ? "" : d;
-    $("d-network").setAttribute("aria-pressed", displayMode === "network" ? "true" : "false");
-    render();
-  }
-  $("d-network").addEventListener("click", function () { setDisplay("network"); });
+  $("v-network").addEventListener("click", function () { setView("network"); });
 
   /* ---------- start ---------- */
   render();
