@@ -6,6 +6,7 @@
 <meta name="robots" content="noindex">
 <meta name="description" content="Shared-language Concept Register for joined-up public services, shown as a mind map.">
 <title>Concept Register Mind Map</title>
+<script>try{var t=localStorage.getItem("theme");if(t==="dark"||t==="light")document.documentElement.setAttribute("data-theme",t);}catch(e){}</script>
 <style>
   :root {
     color-scheme: light dark;
@@ -195,6 +196,7 @@
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           <button type="button" class="btn" id="b-refresh">Check for updates</button>
           <a href="./concept-register-db.html" class="btn">Edit data ↗</a>
+          <button type="button" class="btn" id="b-theme" aria-label="Toggle colour theme">Dark mode</button>
           <span class="live" id="live" role="status">Loading…</span>
         </div>
       </div>
@@ -1051,6 +1053,27 @@
     render();
   });
   $("b-refresh").addEventListener("click", function () { load(true); });
+
+  /* ---------- theme toggle ---------- */
+  function applyTheme(theme) {
+    if (theme === "dark" || theme === "light") {
+      document.documentElement.setAttribute("data-theme", theme);
+    } else {
+      document.documentElement.removeAttribute("data-theme");
+    }
+    var isDark = theme === "dark" || (theme !== "light" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    $("b-theme").textContent = isDark ? "Light mode" : "Dark mode";
+  }
+  (function () {
+    try { applyTheme(localStorage.getItem("theme")); } catch (e) {}
+  }());
+  $("b-theme").addEventListener("click", function () {
+    var cur = document.documentElement.getAttribute("data-theme");
+    var next = cur === "dark" ? "light" : "dark";
+    try { localStorage.setItem("theme", next); } catch (e) {}
+    applyTheme(next);
+  });
+
   $("v-map").addEventListener("click", function () { setView("map"); });
   $("v-list").addEventListener("click", function () { setView("list"); });
   $("v-table").addEventListener("click", function () { setView("table"); });
