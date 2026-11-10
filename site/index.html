@@ -169,17 +169,6 @@
     </div>
     <div class="right-col">
       <aside class="panel" id="detail" aria-live="polite"></aside>
-      <div class="view-switch">
-        <span class="view-label">View as</span>
-        <div class="pill-row" role="group" aria-label="Display as">
-          <button type="button" class="pill-btn" id="v-map" aria-pressed="true">Mind map</button>
-          <button type="button" class="pill-btn" id="v-list" aria-pressed="false">List</button>
-          <button type="button" class="pill-btn" id="v-table" aria-pressed="false">Table</button>
-          <button type="button" class="pill-btn" id="v-network" aria-pressed="false">Network</button>
-          <button type="button" class="pill-btn" id="v-treemap" aria-pressed="false">Treemap</button>
-          <button type="button" class="pill-btn" id="v-chord" aria-pressed="false">Chord</button>
-        </div>
-      </div>
       <div class="right-controls">
         <div>
           <span class="view-label">Group by</span>
@@ -189,6 +178,20 @@
             <button type="button" class="pill-btn" id="b-links" aria-pressed="true">Related links</button>
           </div>
         </div>
+      </div>
+      <div class="view-switch" style="border-top:1px solid var(--border);padding-top:10px;">
+        <span class="view-label">View as</span>
+        <div class="pill-row" role="group" aria-label="View as">
+          <button type="button" class="pill-btn" id="v-map" aria-pressed="true">Mind map</button>
+          <button type="button" class="pill-btn" id="v-list" aria-pressed="false">List</button>
+          <button type="button" class="pill-btn" id="v-table" aria-pressed="false">Table</button>
+          <button type="button" class="pill-btn" id="v-network" aria-pressed="false">Network</button>
+          <button type="button" class="pill-btn" id="v-treemap" aria-pressed="false">Treemap</button>
+          <button type="button" class="pill-btn" id="v-chord" aria-pressed="false">Chord</button>
+        </div>
+      </div>
+      <div class="panel" id="view-desc" aria-live="polite"></div>
+      <div class="right-controls">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           <button type="button" class="btn" id="b-refresh">Check for updates</button>
           <a href="./concept-register-db.html" class="btn">Edit data ↗</a>
@@ -376,6 +379,7 @@
   function render() {
     renderSummary();
     renderLegend();
+    renderViewDesc();
     var isNetwork = viewMode === "network";
     var isTreemap = viewMode === "treemap";
     var isChord = viewMode === "chord";
@@ -932,9 +936,24 @@
     if (hintEl3) { box.insertBefore(svgEl.node(), hintEl3); } else { box.appendChild(svgEl.node()); }
   }
 
+  var VIEW_DESC = {
+    map:     "Mind map — concepts arranged as a radial tree, grouped by service area or status. Click any node to see its definition.",
+    list:    "List — a simple scrollable list of all concepts, sorted alphabetically within each group.",
+    table:   "Table — a spreadsheet-style view of all concepts with status and service area columns.",
+    network: "Network — a force-directed graph where edges connect related concepts. Drag nodes and scroll to zoom.",
+    treemap: "Treemap — nested rectangles sized by concept count. Each tile represents one concept; outer blocks show the grouping.",
+    chord:   "Chord diagram — ribbons connect service areas that share concepts. Wider ribbons mean more concepts in common."
+  };
+
+  function renderViewDesc() {
+    var el = $("view-desc");
+    if (el) { el.textContent = VIEW_DESC[viewMode] || ""; }
+  }
+
   function setView(v) {
     viewMode = v;
     ["map", "list", "table", "network", "treemap", "chord"].forEach(function (k) { $("v-" + k).setAttribute("aria-pressed", k === v ? "true" : "false"); });
+    renderViewDesc();
     render();
   }
 
