@@ -160,6 +160,9 @@
       <div class="mapcard" id="view-network" hidden>
         <div class="hint">Drag nodes · scroll to zoom · click for details</div>
       </div>
+      <div class="mapcard" id="view-treemap" hidden>
+        <div class="hint">Click a tile for details</div>
+      </div>
     </div>
     <div class="right-col">
       <aside class="panel" id="detail" aria-live="polite"></aside>
@@ -170,6 +173,7 @@
           <button type="button" class="pill-btn" id="v-list" aria-pressed="false">List</button>
           <button type="button" class="pill-btn" id="v-table" aria-pressed="false">Table</button>
           <button type="button" class="pill-btn" id="v-network" aria-pressed="false">Network</button>
+          <button type="button" class="pill-btn" id="v-treemap" aria-pressed="false">Treemap</button>
         </div>
       </div>
       <div class="right-controls">
@@ -369,12 +373,15 @@
     renderSummary();
     renderLegend();
     var isNetwork = viewMode === "network";
+    var isTreemap = viewMode === "treemap";
     var isMap = viewMode === "map";
     if (!isNetwork && networkSim) { networkSim.stop(); networkSim = null; }
     $("view-map").hidden = !isMap;
-    $("view-alt").hidden = isMap || isNetwork;
+    $("view-alt").hidden = isMap || isNetwork || isTreemap;
     $("view-network").hidden = !isNetwork;
+    $("view-treemap").hidden = !isTreemap;
     if (isNetwork) { drawNetwork(); renderDetail(); }
+    else if (isTreemap) { drawTreemap(); renderDetail(); }
     else if (isMap) { drawMap(); renderDetail(); applyFocus(); }
     else { if (viewMode === "list") { drawList(); } else { drawTable(); } renderDetail(); }
   }
@@ -668,6 +675,88 @@
     });
   }
 
+  function drawTreemap() {
+    var box = $("view-treemap");
+    var prev = box.querySelector("svg,p.empty");
+    while (prev) { box.removeChild(prev); prev = box.querySelector("svg,p.empty"); }
+    var vis = concepts.filter(function (c) { return !hidden[c.skey]; });
+    if (!vis.length) {
+      var ep = document.createElement("p"); ep.className = "empty";
+      ep.textContent = loaded ? "No concepts to show." : "Loading the register…";
+      var hintEl = box.querySelector(".hint");
+      if (hintEl) { box.insertBefore(ep, hintEl); } else { box.appendChild(ep); }
+      return;
+    }
+    var areaMap = new Map();
+    vis.forEach(function (c) {
+      c.areas.forEach(function (a) {
+        if (!areaMap.has(a)) { areaMap.set(a, []); }
+        areaMap.get(a).push({ name: c.name, value: 1, ckey: c.key, skey: c.skey });
+      });
+    });
+    var rootData = {
+      name: "root",
+      children: Array.from(areaMap, function (p) {
+        return { name: p[0], children: p[1] };
+      }).sort(function (a, b) { return a.name.localeCompare(b.name, "en"); })
+    };
+    var cs = getComputedStyle(document.documentElement);
+    var cv = function (n) { return cs.getPropertyValue(n).trim(); };
+    var colMap = { agreed: cv("--agreed"), contested: cv("--contested"), draft: cv("--draft"), deprecated: cv("--deprecated"), other: cv("--other") };
+    var W = box.clientWidth || 700, H = Math.max(380, Math.round(W * 0.72));
+    var hier = d3.hierarchy(rootData)
+      .sum(function (d) { return d.value || 0; })
+      .sort(function (a, b) { return b.value - a.value; });
+    d3.treemap().size([W, H]).paddingOuter(3).paddingInner(1).paddingTop(18)(hier);
+    var svgEl = d3.create("svg")
+      .attr("width", "100%").attr("viewBox", [0, 0, W, H])
+      .style("display", "block").style("max-height", "82vh");
+    var g = svgEl.append("g");
+    // Area backgrounds and labels
+    g.selectAll("rect.area")
+      .data(hier.descendants().filter(function (d) { return d.depth === 1; }))
+      .join("rect").attr("class", "area")
+      .attr("x", function (d) { return d.x0; }).attr("y", function (d) { return d.y0; })
+      .attr("width", function (d) { return d.x1 - d.x0; }).attr("height", function (d) { return d.y1 - d.y0; })
+      .attr("fill", cv("--surface2")).attr("stroke", cv("--border")).attr("stroke-width", 1);
+    g.selectAll("text.area-lbl")
+      .data(hier.descendants().filter(function (d) { return d.depth === 1 && (d.x1 - d.x0) > 20; }))
+      .join("text").attr("class", "area-lbl")
+      .attr("x", function (d) { return d.x0 + 4; }).attr("y", function (d) { return d.y0 + 13; })
+      .attr("fill", cv("--muted")).attr("font-size", 11).attr("font-weight", 600)
+      .attr("pointer-events", "none")
+      .text(function (d) {
+        var w = d.x1 - d.x0 - 8, maxCh = Math.max(3, Math.floor(w / 7));
+        return d.data.name.length > maxCh ? d.data.name.slice(0, maxCh - 1) + "…" : d.data.name;
+      });
+    // Concept tiles
+    g.selectAll("rect.leaf")
+      .data(hier.descendants().filter(function (d) { return d.depth === 2; }))
+      .join("rect").attr("class", "leaf")
+      .attr("x", function (d) { return d.x0; }).attr("y", function (d) { return d.y0; })
+      .attr("width", function (d) { return Math.max(0, d.x1 - d.x0 - 1); })
+      .attr("height", function (d) { return Math.max(0, d.y1 - d.y0 - 1); })
+      .attr("fill", function (d) { return colMap[d.data.skey] || colMap.other; })
+      .attr("fill-opacity", 0.78).attr("stroke", cv("--surface")).attr("stroke-width", 0.5)
+      .style("cursor", "pointer")
+      .on("click", function (event, d) { choose(d.data.ckey); })
+      .append("title").text(function (d) { return d.data.name; });
+    // Concept labels
+    g.selectAll("text.leaf-lbl")
+      .data(hier.descendants().filter(function (d) {
+        return d.depth === 2 && (d.x1 - d.x0) > 24 && (d.y1 - d.y0) > 13;
+      }))
+      .join("text").attr("class", "leaf-lbl")
+      .attr("x", function (d) { return d.x0 + 3; }).attr("y", function (d) { return d.y0 + 11; })
+      .attr("fill", cv("--surface")).attr("font-size", 10).attr("pointer-events", "none")
+      .text(function (d) {
+        var w = d.x1 - d.x0 - 6, maxCh = Math.max(2, Math.floor(w / 6));
+        return d.data.name.length > maxCh ? d.data.name.slice(0, maxCh - 1) + "…" : d.data.name;
+      });
+    var hintEl2 = box.querySelector(".hint");
+    if (hintEl2) { box.insertBefore(svgEl.node(), hintEl2); } else { box.appendChild(svgEl.node()); }
+  }
+
   function drawNetwork() {
     var box = $("view-network");
     var prev = box.querySelector("svg,p.empty");
@@ -749,7 +838,7 @@
 
   function setView(v) {
     viewMode = v;
-    ["map", "list", "table", "network"].forEach(function (k) { $("v-" + k).setAttribute("aria-pressed", k === v ? "true" : "false"); });
+    ["map", "list", "table", "network", "treemap"].forEach(function (k) { $("v-" + k).setAttribute("aria-pressed", k === v ? "true" : "false"); });
     render();
   }
 
@@ -851,6 +940,7 @@
   $("v-list").addEventListener("click", function () { setView("list"); });
   $("v-table").addEventListener("click", function () { setView("table"); });
   $("v-network").addEventListener("click", function () { setView("network"); });
+  $("v-treemap").addEventListener("click", function () { setView("treemap"); });
 
   /* ---------- start ---------- */
   render();
