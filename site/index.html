@@ -163,6 +163,9 @@
       <div class="mapcard" id="view-treemap" hidden>
         <div class="hint">Click a tile for details</div>
       </div>
+      <div class="mapcard" id="view-chord" hidden>
+        <div class="hint">Ribbons show concepts shared between service areas · hover for counts</div>
+      </div>
     </div>
     <div class="right-col">
       <aside class="panel" id="detail" aria-live="polite"></aside>
@@ -174,6 +177,7 @@
           <button type="button" class="pill-btn" id="v-table" aria-pressed="false">Table</button>
           <button type="button" class="pill-btn" id="v-network" aria-pressed="false">Network</button>
           <button type="button" class="pill-btn" id="v-treemap" aria-pressed="false">Treemap</button>
+          <button type="button" class="pill-btn" id="v-chord" aria-pressed="false">Chord</button>
         </div>
       </div>
       <div class="right-controls">
@@ -374,14 +378,17 @@
     renderLegend();
     var isNetwork = viewMode === "network";
     var isTreemap = viewMode === "treemap";
+    var isChord = viewMode === "chord";
     var isMap = viewMode === "map";
     if (!isNetwork && networkSim) { networkSim.stop(); networkSim = null; }
     $("view-map").hidden = !isMap;
-    $("view-alt").hidden = isMap || isNetwork || isTreemap;
+    $("view-alt").hidden = isMap || isNetwork || isTreemap || isChord;
     $("view-network").hidden = !isNetwork;
     $("view-treemap").hidden = !isTreemap;
+    $("view-chord").hidden = !isChord;
     if (isNetwork) { drawNetwork(); renderDetail(); }
     else if (isTreemap) { drawTreemap(); renderDetail(); }
+    else if (isChord) { drawChord(); renderDetail(); }
     else if (isMap) { drawMap(); renderDetail(); applyFocus(); }
     else { if (viewMode === "list") { drawList(); } else { drawTable(); } renderDetail(); }
   }
@@ -836,9 +843,98 @@
     if (hintEl2) { box.insertBefore(svgEl.node(), hintEl2); } else { box.appendChild(svgEl.node()); }
   }
 
+  function drawChord() {
+    var box = $("view-chord");
+    var prev = box.querySelector("svg,p.empty");
+    while (prev) { box.removeChild(prev); prev = box.querySelector("svg,p.empty"); }
+    var vis = concepts.filter(function (c) { return !hidden[c.skey]; });
+    if (!vis.length) {
+      var ep = document.createElement("p"); ep.className = "empty";
+      ep.textContent = loaded ? "No concepts to show." : "Loading the register…";
+      var hintEl = box.querySelector(".hint");
+      if (hintEl) { box.insertBefore(ep, hintEl); } else { box.appendChild(ep); }
+      return;
+    }
+    var areaSet = new Set();
+    vis.forEach(function (c) { c.areas.forEach(function (a) { areaSet.add(a); }); });
+    var areas = Array.from(areaSet).sort();
+    var n = areas.length;
+    var areaIdx = {};
+    areas.forEach(function (a, i) { areaIdx[a] = i; });
+    // Symmetric matrix: [i][j] = concepts shared between area i and j; diagonal = exclusive
+    var matrix = d3.range(n).map(function () { return new Array(n).fill(0); });
+    vis.forEach(function (c) {
+      var idx = c.areas.map(function (a) { return areaIdx[a]; })
+        .filter(function (i) { return i !== undefined; })
+        .filter(function (v, i, a) { return a.indexOf(v) === i; }); // unique
+      if (idx.length === 1) {
+        matrix[idx[0]][idx[0]] += 1;
+      } else {
+        for (var i = 0; i < idx.length; i++) {
+          for (var j = 0; j < idx.length; j++) {
+            if (i !== j) { matrix[idx[i]][idx[j]] += 1; }
+          }
+        }
+      }
+    });
+    var cs = getComputedStyle(document.documentElement);
+    var cv = function (k) { return cs.getPropertyValue(k).trim(); };
+    var COLORS = ["#4e79a7","#f28e2b","#e15759","#76b7b2","#59a14f","#edc948","#b07aa1","#ff9da7","#9c755f","#bab0ac"];
+    var W = box.clientWidth || 500;
+    var outerR = Math.min(W * 0.42, 210), innerR = outerR - 18, pad = outerR + 52;
+    var chords = d3.chord().padAngle(0.06).sortSubgroups(d3.descending)(matrix);
+    var arcGen = d3.arc().innerRadius(innerR).outerRadius(outerR);
+    var ribbonGen = d3.ribbon().radius(innerR - 1);
+    var svgEl = d3.create("svg")
+      .attr("width", "100%").attr("viewBox", [-pad, -pad, 2 * pad, 2 * pad])
+      .style("aspect-ratio", "1/1").style("max-height", "82vh").style("display", "block");
+    var g = svgEl.append("g");
+    // Ribbons (cross-area only)
+    g.selectAll("path.ribbon")
+      .data(chords.filter(function (d) { return d.source.index !== d.target.index; }))
+      .join("path").attr("class", "ribbon")
+      .attr("d", ribbonGen)
+      .attr("fill", function (d) { return COLORS[d.source.index % COLORS.length]; })
+      .attr("fill-opacity", 0.35)
+      .attr("stroke", cv("--surface")).attr("stroke-width", 0.4)
+      .append("title").text(function (d) {
+        var v = d.source.value;
+        return areas[d.source.index] + " ↔ " + areas[d.target.index] + ": " + v + " shared concept" + (v !== 1 ? "s" : "");
+      });
+    // Arcs
+    var grp = g.append("g").selectAll("g").data(chords.groups).join("g");
+    grp.append("path")
+      .attr("d", arcGen)
+      .attr("fill", function (d) { return COLORS[d.index % COLORS.length]; })
+      .attr("fill-opacity", 0.9)
+      .attr("stroke", cv("--surface")).attr("stroke-width", 0.8)
+      .append("title").text(function (d) {
+        return areas[d.index] + " — " + d.value + " concept" + (d.value !== 1 ? "s" : "");
+      });
+    // Labels
+    grp.append("text")
+      .each(function (d) { d.angle = (d.startAngle + d.endAngle) / 2; })
+      .attr("dy", "0.35em")
+      .attr("transform", function (d) {
+        return "rotate(" + (d.angle * 180 / Math.PI - 90) + ")" +
+               "translate(" + (outerR + 6) + ",0)" +
+               (d.angle > Math.PI ? " rotate(180)" : "");
+      })
+      .attr("text-anchor", function (d) { return d.angle > Math.PI ? "end" : "start"; })
+      .attr("fill", cv("--text")).attr("font-size", 11).attr("pointer-events", "none")
+      .text(function (d) {
+        var lbl = areas[d.index];
+        var arcLen = (d.endAngle - d.startAngle) * outerR;
+        var maxCh = Math.max(4, Math.floor(arcLen / 6) + 6);
+        return lbl.length > maxCh ? lbl.slice(0, maxCh - 1) + "…" : lbl;
+      });
+    var hintEl3 = box.querySelector(".hint");
+    if (hintEl3) { box.insertBefore(svgEl.node(), hintEl3); } else { box.appendChild(svgEl.node()); }
+  }
+
   function setView(v) {
     viewMode = v;
-    ["map", "list", "table", "network", "treemap"].forEach(function (k) { $("v-" + k).setAttribute("aria-pressed", k === v ? "true" : "false"); });
+    ["map", "list", "table", "network", "treemap", "chord"].forEach(function (k) { $("v-" + k).setAttribute("aria-pressed", k === v ? "true" : "false"); });
     render();
   }
 
@@ -941,6 +1037,7 @@
   $("v-table").addEventListener("click", function () { setView("table"); });
   $("v-network").addEventListener("click", function () { setView("network"); });
   $("v-treemap").addEventListener("click", function () { setView("treemap"); });
+  $("v-chord").addEventListener("click", function () { setView("chord"); });
 
   /* ---------- start ---------- */
   render();
